@@ -1,0 +1,7 @@
+[
+  {"id":"caral","title":"Caral — Première Civilisation des Amériques","year":-3000,"yearEnd":-1800,"lat":-10.9,"lng":-77.5,"cat":"em","region":"Pérou","desc":"Contemporaine des pyramides égyptiennes. Pyramides monumentales sans poterie ni écriture."},
+  {"id":"mayas","title":"Mayas — Apogée Classique","year":250,"yearEnd":900,"lat":17.0,"lng":-89.0,"cat":"sc","region":"Mexique / Guatemala","desc":"Calendrier à 365,25 jours, écriture glyphique, concept du zéro inventé indépendamment."},
+  {"id":"teotihuacan","title":"Teotihuacan — Métropole","year":100,"yearEnd":650,"lat":19.7,"lng":-98.8,"cat":"em","region":"Mexique","desc":"200 000 habitants, 6e plus grande ville du monde en l'an 500."},
+  {"id":"azteques","title":"Empire Aztèque — Tenochtitlan","year":1325,"yearEnd":1521,"lat":19.4,"lng":-99.1,"cat":"em","region":"Mexique","desc":"Tenochtitlan bâtie sur un lac artificiel avec aqueducs. Conquise par 500 Espagnols et la variole."},
+  {"id":"incas","title":"Empire Inca — Tawantinsuyu","year":1438,"yearEnd":1533,"lat":-13.5,"lng":-71.9,"cat":"em","region":"Andes","desc":"4000 km du nord au sud. 30 000 km de routes pavées. Chirurgie crânienne avec 80% de survie."}
+]

@@ -1,0 +1,6 @@
+[
+  {"id":"islam-hegire","title":"Hégire — Naissance de l'Islam","year":622,"yearEnd":700,"lat":24.5,"lng":39.6,"cat":"re","region":"Arabie","desc":"En moins d'un siècle, l'islam se répand de l'Espagne à l'Inde."},
+  {"id":"bagdad","title":"Maison de la Sagesse — Bagdad","year":750,"yearEnd":1258,"lat":33.3,"lng":44.4,"cat":"sc","region":"Bagdad","desc":"Plus grand centre intellectuel du monde. Traduit Aristote, Euclide, Galien."},
+  {"id":"al-khawarizmi","title":"Al-Khwarizmi — Algèbre","year":820,"yearEnd":850,"lat":33.3,"lng":44.4,"cat":"sc","region":"Bagdad","desc":"Fonde l'algèbre. Son nom latinisé donne algorithme."},
+  {"id":"cordoue","title":"Cordoue — Capitale Intellectuelle","year":756,"yearEnd":1031,"lat":37.9,"lng":-4.8,"cat":"em","region":"Al-Andalus","desc":"500 000 habitants, 70 bibliothèques, rues éclairées la nuit."}
+]

@@ -1,0 +1,6 @@
+[
+  {"id":"ecriture","title":"Invention de l'Écriture","year":-3200,"yearEnd":-2000,"lat":31.0,"lng":46.0,"cat":"ar","region":"Mésopotamie","desc":"Les Sumériens d'Uruk développent l'écriture cunéiforme. Naissance de l'histoire écrite."},
+  {"id":"pyramides","title":"Grande Pyramide de Khéops","year":-2560,"yearEnd":-2550,"lat":29.9,"lng":31.1,"cat":"em","region":"Égypte","desc":"140m de haut, 2,3 millions de blocs, alignée au nord géographique à 0,05° de précision."},
+  {"id":"hammurabi","title":"Code d'Hammurabi","year":-1754,"yearEnd":-1750,"lat":32.5,"lng":44.4,"cat":"po","region":"Babylone","desc":"282 lois gravées sur une stèle de basalte. Premier grand code juridique de l'humanité."},
+  {"id":"alphabet-phenicien","title":"Alphabet Phénicien","year":-1050,"yearEnd":-800,"lat":33.9,"lng":35.5,"cat":"ar","region":"Phénicie","desc":"22 lettres consonantiques. L'alphabet que vous lisez descend directement des tablettes phéniciennes."}
+]

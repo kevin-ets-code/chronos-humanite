@@ -1,0 +1,11 @@
+[
+  { "id": "sc", "label": "Science",       "color": "#5b9bd5" },
+  { "id": "te", "label": "Technologie",   "color": "#a8d46a" },
+  { "id": "em", "label": "Empires",       "color": "#c97a5b" },
+  { "id": "po", "label": "Politique",     "color": "#e08a5a" },
+  { "id": "ph", "label": "Philosophie",   "color": "#d4c06a" },
+  { "id": "re", "label": "Religion",      "color": "#9b7bc4" },
+  { "id": "ar", "label": "Art & Culture", "color": "#7bc49b" },
+  { "id": "gu", "label": "Guerre",        "color": "#d46a6a" },
+  { "id": "ex", "label": "Exploration",   "color": "#6abed4" }
+]

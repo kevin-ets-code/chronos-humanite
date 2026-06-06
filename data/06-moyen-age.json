@@ -1,0 +1,7 @@
+[
+  {"id":"charlemagne","title":"Couronnement de Charlemagne","year":800,"yearEnd":814,"lat":41.9,"lng":12.5,"cat":"em","region":"Rome","desc":"Unifie l'Europe. Impose des écoles dans chaque évêché."},
+  {"id":"vikings","title":"L'Ère Viking","year":793,"yearEnd":1066,"lat":59.9,"lng":10.7,"cat":"ex","region":"Scandinavie","desc":"Pillent, commercent et colonisent. Atteignent l'Amérique 492 ans avant Colomb."},
+  {"id":"magna-carta","title":"Magna Carta","year":1215,"yearEnd":1220,"lat":51.4,"lng":-0.6,"cat":"po","region":"Angleterre","desc":"Premier document limitant officiellement le pouvoir royal en Occident."},
+  {"id":"peste-noire","title":"La Peste Noire","year":1347,"yearEnd":1353,"lat":45.0,"lng":15.0,"cat":"sc","region":"Europe","desc":"Tue 30 à 60% de la population européenne en 6 ans."},
+  {"id":"gutenberg","title":"Imprimerie de Gutenberg","year":1440,"yearEnd":1450,"lat":49.9,"lng":8.3,"cat":"te","region":"Mayence","desc":"En 50 ans : 15 millions de livres en Europe. L'information libérée des monastères."}
+]

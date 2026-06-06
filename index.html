@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHRONOS · Humanité</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400&family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    :root {
+      --ink:       #0d0c0a;
+      --parchment: #f5f0e8;
+      --gold:      #c9a84c;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--ink);
+    }
+
+    /* ── Loading screen ──────────────────────────────────── */
+    #loading {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--ink);
+      z-index: 10;
+      transition: opacity 1.2s ease;
+    }
+    #loading.fade-out { opacity: 0; pointer-events: none; }
+
+    #loading h1 {
+      font-family: 'Playfair Display', serif;
+      color: var(--gold);
+      font-size: clamp(1.4rem, 4vw, 2.2rem);
+      font-weight: 400;
+      letter-spacing: .35em;
+      text-transform: uppercase;
+    }
+    #loading p {
+      font-family: 'Cormorant Garamond', serif;
+      color: var(--parchment);
+      opacity: .45;
+      font-size: .9rem;
+      letter-spacing: .18em;
+      margin-top: .6rem;
+    }
+    #loading .bar {
+      margin-top: 2rem;
+      width: 180px; height: 1px;
+      background: rgba(255, 255, 255, .1);
+      overflow: hidden;
+    }
+    #loading .fill {
+      height: 100%;
+      background: var(--gold);
+      width: 0;
+      transition: width .3s ease;
+    }
+
+    /* ── Canvas ──────────────────────────────────────────── */
+    canvas {
+      display: block;
+      cursor: grab;
+    }
+    canvas:active { cursor: grabbing; }
+
+    /* ── Timeline HUD ────────────────────────────────────── */
+    #timeline {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 0 clamp(20px, 5vw, 60px) 24px;
+      background: rgba(13, 12, 10, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-top: 1px solid rgba(201, 168, 76, 0.12);
+    }
+
+    #tl-wrapper {
+      position: relative;
+      padding-top: 46px;
+    }
+
+    #tl-year {
+      position: absolute;
+      top: 4px;
+      left: 0;
+      transform: translateX(-50%);
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1rem, 2.5vw, 1.45rem);
+      font-weight: 400;
+      color: var(--gold);
+      white-space: nowrap;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    #tl-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      display: block;
+      width: 100%;
+      height: 2px;
+      border-radius: 1px;
+      outline: none;
+      cursor: pointer;
+      /* background gradient updated dynamically for gold fill */
+    }
+    #tl-slider::-webkit-slider-runnable-track {
+      height: 2px;
+      border-radius: 1px;
+      background: transparent; /* parent gradient shows through */
+    }
+    #tl-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      margin-top: -8px; /* center 18px thumb on 2px track */
+      border-radius: 50%;
+      background: var(--gold);
+      cursor: pointer;
+      box-shadow:
+        0 0 0 2px rgba(13, 12, 10, 0.85),
+        0 0 10px rgba(201, 168, 76, 0.7),
+        0 0 26px rgba(201, 168, 76, 0.35);
+      transition: box-shadow .2s ease;
+    }
+    #tl-slider:hover::-webkit-slider-thumb,
+    #tl-slider:active::-webkit-slider-thumb {
+      box-shadow:
+        0 0 0 2px rgba(13, 12, 10, 0.85),
+        0 0 16px rgba(201, 168, 76, 0.92),
+        0 0 40px rgba(201, 168, 76, 0.5);
+    }
+
+    #tl-slider::-moz-range-track {
+      height: 2px;
+      border-radius: 1px;
+      background: rgba(245, 240, 232, 0.18);
+      cursor: pointer;
+    }
+    #tl-slider::-moz-range-progress {
+      height: 2px;
+      border-radius: 1px;
+      background: var(--gold);
+    }
+    #tl-slider::-moz-range-thumb {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--gold);
+      border: none;
+      cursor: pointer;
+      box-shadow:
+        0 0 10px rgba(201, 168, 76, 0.7),
+        0 0 26px rgba(201, 168, 76, 0.35);
+    }
+
+    #tl-era {
+      margin-top: 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--parchment);
+      opacity: .4;
+      text-align: center;
+      user-select: none;
+    }
+
+    /* ── Contrôle orbital soleil ─────────────────────────── */
+    #controls-left {
+      position: fixed;
+      top: 1.5rem;
+      left: 1.5rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    #sun-control {
+      width: 120px;
+      overflow: visible;
+      opacity: 0.7;
+      transition: opacity 0.4s ease;
+      user-select: none;
+    }
+    #sun-control:hover { opacity: 1; }
+
+    #sun-svg { display: block; overflow: visible; }
+
+    #sun-handle {
+      position: absolute;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--gold);
+      cursor: grab;
+      transform: translate(-50%, -50%);
+      box-shadow:
+        0 0 0 2px rgba(13, 12, 10, 0.85),
+        0 0 8px  rgba(201, 168, 76, 0.8),
+        0 0 20px rgba(201, 168, 76, 0.4);
+      transition: box-shadow .2s ease;
+    }
+    #sun-handle:active { cursor: grabbing; }
+    #sun-control:hover #sun-handle {
+      box-shadow:
+        0 0 0 2px rgba(13, 12, 10, 0.85),
+        0 0 14px rgba(201, 168, 76, 0.95),
+        0 0 32px rgba(201, 168, 76, 0.6);
+    }
+
+    #sun-label {
+      display: block;
+      margin-top: 6px;
+      padding-left: 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.48rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      text-align: center;
+      user-select: none;
+    }
+
+    /* ── Chargement historique ───────────────────────────── */
+    #history-loading {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(13, 12, 10, 0.92);
+      font-family: 'DM Mono', monospace;
+      color: var(--gold);
+      font-size: 0.72rem;
+      letter-spacing: 0.25em;
+      z-index: 9;
+      pointer-events: none;
+      transition: opacity 0.8s ease;
+    }
+    #history-loading.hidden { opacity: 0; }
+
+    /* ── Overlay sprites ─────────────────────────────────── */
+    #sprite-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .sprite-hit {
+      position: absolute;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: all;
+      cursor: pointer;
+      background: transparent;
+    }
+    /* ── Tooltip événement ───────────────────────────────── */
+    #ev-tooltip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 51;
+      opacity: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: translateX(-50%) translateY(0px);
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+    #ev-tooltip.visible {
+      opacity: 1;
+    }
+    #ev-line {
+      width: 1px;
+      height: 50px;
+      background: linear-gradient(
+        to bottom,
+        rgba(201,168,76,0.8),
+        transparent
+      );
+    }
+    #ev-card {
+      background: linear-gradient(
+        135deg,
+        rgba(25,22,15,0.88) 0%,
+        rgba(15,13,9,0.88) 100%
+      );
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(201,168,76,0.35);
+      border-radius: 3px;
+      padding: 10px 14px;
+      min-width: 170px;
+      max-width: 230px;
+    }
+    #ev-cat-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    #ev-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 13px;
+      color: #f5f0e8;
+      line-height: 1.3;
+      margin-bottom: 5px;
+    }
+    #ev-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: #c9a84c;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 3px;
+    }
+    #ev-region {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: rgba(245,240,232,0.38);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── Panel latéral ───────────────────────────────────── */
+    #side-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 380px;
+      height: 100vh;
+      background: linear-gradient(
+        160deg,
+        rgba(18,15,10,0.97) 0%,
+        rgba(12,10,7,0.97) 100%
+      );
+      backdrop-filter: blur(20px);
+      border-left: 1px solid rgba(201,168,76,0.15);
+      z-index: 200;
+      transform: translateX(100%);
+      transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
+      overflow-y: auto;
+      padding: 0;
+      box-shadow:
+        -12px 0 50px rgba(201,168,76,0.15),
+        -4px 0 20px rgba(201,168,76,0.2),
+        0 0 80px rgba(0,0,0,0.8);
+    }
+    #side-panel::before {
+      content: '';
+      position: absolute;
+      top: 5%;
+      left: -1px;
+      width: 1px;
+      height: 90%;
+      background: linear-gradient(
+        to bottom,
+        transparent,
+        rgba(201,168,76,0.7) 20%,
+        rgba(201,168,76,0.9) 50%,
+        rgba(201,168,76,0.7) 80%,
+        transparent
+      );
+      border-radius: 1px;
+    }
+    #side-panel.open {
+      transform: translateX(0);
+    }
+    #panel-close {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.2rem;
+      background: transparent;
+      border: 1px solid rgba(201,168,76,0.2);
+      color: rgba(245,240,232,0.4);
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+    }
+    #panel-close:hover {
+      border-color: rgba(201,168,76,0.6);
+      color: #c9a84c;
+    }
+    #panel-content {
+      padding: 3rem 2rem 2rem;
+    }
+    #panel-cat-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.55rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+      display: inline-block;
+      padding: 0.25rem 0.65rem;
+      border: 1px solid;
+      border-radius: 1px;
+    }
+    #panel-era {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.52rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(245,240,232,0.25);
+      margin-bottom: 1rem;
+    }
+    #panel-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f5f0e8;
+      line-height: 1.15;
+      margin-bottom: 0.8rem;
+    }
+    #panel-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: #c9a84c;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.8rem;
+    }
+    #panel-region {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    #panel-region-icon {
+      color: rgba(201,168,76,0.4);
+      font-size: 0.7rem;
+    }
+    #panel-region-text {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(245,240,232,0.35);
+    }
+    #panel-divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(
+        to right,
+        rgba(201,168,76,0.3),
+        transparent
+      );
+      margin-bottom: 1.5rem;
+    }
+    #panel-desc {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.05rem;
+      line-height: 1.85;
+      color: rgba(245,240,232,0.65);
+      font-style: italic;
+    }
+    #panel-overlay {
+      display: none;
+    }
+    #panel-overlay.active {
+      display: none;
+    }
+
+    /* ── Écran d'introduction ────────────────────────────────── */
+    #intro-screen {
+      position: fixed;
+      inset: 0;
+      background: #0d0c0a;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1.2s ease, transform 1.2s ease;
+    }
+    #intro-screen.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #intro-content {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.2rem;
+    }
+    #intro-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: rgba(201,168,76,0.6);
+      opacity: 0;
+      transform: translateY(10px);
+      animation: introFadeUp 0.8s ease 0.3s forwards;
+    }
+    #intro-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(4rem, 10vw, 9rem);
+      font-weight: 900;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+      color: #f5f0e8;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: introFadeUp 0.9s ease 0.6s forwards;
+    }
+    #intro-title span {
+      color: #c9a84c;
+      font-style: italic;
+    }
+    #intro-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(245,240,232,0.3);
+      opacity: 0;
+      animation: introFadeUp 0.8s ease 1s forwards;
+    }
+    #intro-line {
+      width: 0;
+      height: 1px;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(201,168,76,0.6),
+        transparent
+      );
+      animation: introLine 1s ease 1.3s forwards;
+    }
+    #intro-hint {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1rem;
+      font-style: italic;
+      color: rgba(245,240,232,0.35);
+      opacity: 0;
+      animation: introFadeUp 0.8s ease 1.6s forwards;
+    }
+    @keyframes introFadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes introLine {
+      to { width: 200px; }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ── Titre globe ─────────────────────────────────────────── */
+    #globe-title {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      opacity: 0;
+      animation: fadeUp 1s ease 4.2s forwards;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #globe-title-main {
+      font-family: 'Playfair Display', serif;
+      font-size: 0.85rem;
+      font-weight: 900;
+      letter-spacing: 0.3em;
+      color: rgba(245,240,232,0.5);
+      text-transform: uppercase;
+    }
+    #globe-title-sep {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.6rem;
+      color: rgba(201,168,76,0.4);
+    }
+    #globe-title-sub {
+      font-family: 'Playfair Display', serif;
+      font-size: 0.85rem;
+      font-style: italic;
+      color: rgba(201,168,76,0.5);
+      letter-spacing: 0.1em;
+    }
+
+    /* ── Filtres catégories ──────────────────────────────────── */
+    #filters {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.5rem;
+    }
+    #filters-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.55rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(245,240,232,0.4);
+    }
+    #filters-list {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.3rem;
+    }
+    .fbt {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.38rem 0.9rem;
+      border: 1px solid rgba(245,240,232,0.2);
+      background: transparent;
+      color: rgba(245,240,232,0.45);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .fbt:hover {
+      color: rgba(245,240,232,0.7);
+      border-color: rgba(245,240,232,0.3);
+    }
+
+    #rotation-toggle {
+      width: 36px;
+      height: 36px;
+      background: rgba(13,12,10,0.85);
+      border: 1px solid rgba(201,168,76,0.25);
+      color: rgba(201,168,76,0.6);
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.2s;
+      border-radius: 2px;
+    }
+    #rotation-toggle:hover {
+      border-color: rgba(201,168,76,0.6);
+      color: #c9a84c;
+      background: rgba(201,168,76,0.08);
+    }
+    #rotation-toggle.paused {
+      border-color: rgba(201,168,76,0.4);
+      color: rgba(245,240,232,0.5);
+    }
+    #rotation-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.5rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="intro-screen">
+    <div id="intro-content">
+      <div id="intro-label">Une odyssée à travers le temps</div>
+      <h1 id="intro-title">CHRONOS<br><span>Humanité</span></h1>
+      <div id="intro-sub">~300 000 ans d'histoire · 63 événements · 13 ères</div>
+      <div id="intro-line"></div>
+      <div id="intro-hint">Glissez le curseur pour voyager dans le temps</div>
+    </div>
+  </div>
+
+  <div id="globe-title">
+    <span id="globe-title-main">CHRONOS</span>
+    <span id="globe-title-sep">·</span>
+    <span id="globe-title-sub">Humanité</span>
+  </div>
+
+  <div id="loading">
+    <h1>Globe Chronos</h1>
+    <p>Chargement des textures…</p>
+    <div class="bar"><div class="fill" id="fill"></div></div>
+  </div>
+  <div id="history-loading">Chargement de l'histoire…</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  /* ══════════════════════════════════════════════════════════
+     Globe Chronos — Three.js r128
+  ══════════════════════════════════════════════════════════ */
+
+  const loadingEl = document.getElementById('loading');
+  const fillEl    = document.getElementById('fill');
+
+  function dismissLoading() {
+    if (!loadingEl.parentNode) return;
+    loadingEl.classList.add('fade-out');
+    setTimeout(() => loadingEl.remove(), 1400);
+  }
+
+  // ── Renderer ──────────────────────────────────────────────
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x0d0c0a);
+  document.body.appendChild(renderer.domElement);
+
+  // ── Scene & Camera ────────────────────────────────────────
+  const scene  = new THREE.Scene();
+  window._scene = scene;
+  const camera = new THREE.PerspectiveCamera(
+    45, window.innerWidth / window.innerHeight, 0.1, 500
+  );
+  camera.position.z = 3;
+  window._camera = camera;
+
+  // ── Loading manager ───────────────────────────────────────
+  const manager = new THREE.LoadingManager(
+    () => { setTimeout(dismissLoading, 300); },
+    (_, loaded, total) => { fillEl.style.width = (loaded / total * 100) + '%'; },
+    (url) => { console.warn('Texture load failed:', url); }
+  );
+  // Fallback: dismiss loading screen after 10s regardless
+  setTimeout(dismissLoading, 10000);
+
+  const loader = new THREE.TextureLoader(manager);
+  loader.crossOrigin = 'anonymous';
+
+  const dayTex    = loader.load('./textures/earth_daymap.jpg');
+  const nightTex  = loader.load('./textures/earth_nightmap.jpg');
+  const cloudsTex = loader.load('./textures/earth_clouds.jpg');
+
+  // ── Sun direction (world space, fixed) ────────────────────
+  const SUN_DIR = new THREE.Vector3(-1.0, 0.3, 0.5).normalize();
+
+  // ── Earth — day / night shader ────────────────────────────
+  // normalW uses mat3(modelMatrix) which is a pure rotation for our sphere
+  const earthMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uDay:         { value: dayTex  },
+      uNight:       { value: nightTex },
+      uSun:         { value: SUN_DIR  },
+      uNightLights: { value: 0.0 },
+    },
+    vertexShader: /* glsl */`
+      varying vec2 vUv;
+      varying vec3 vNormalW;
+
+      void main() {
+        vUv      = uv;
+        vNormalW = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform sampler2D uDay;
+      uniform sampler2D uNight;
+      uniform vec3      uSun;
+      uniform float     uNightLights;
+
+      varying vec2 vUv;
+      varying vec3 vNormalW;
+
+      void main() {
+        vec4 day   = texture2D(uDay,   vUv);
+        vec4 night = texture2D(uNight, vUv);
+
+        float cosA  = dot(vNormalW, uSun);
+        float blend = smoothstep(-0.25, 0.25, cosA);
+
+        gl_FragColor = mix(night * uNightLights, day, blend);
+      }
+    `,
+  });
+
+  window._earthMat = earthMat; // exposé pour la connexion slider → uniform
+  const earth = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 64, 64),
+    earthMat
+  );
+  scene.add(earth);
+  window._earth = earth;
+
+  // ── Clouds ────────────────────────────────────────────────
+  // Black background of the cloud texture becomes transparent via AdditiveBlending
+  const clouds = new THREE.Mesh(
+    new THREE.SphereGeometry(1.018, 64, 64),
+    new THREE.MeshBasicMaterial({
+      map:         cloudsTex,
+      blending:    THREE.AdditiveBlending,
+      transparent: true,
+      opacity:     0.55,
+      depthWrite:  false,
+    })
+  );
+  scene.add(clouds);
+
+  // ── Atmosphere: outer halo (BackSide large sphere) ────────
+  // Classic pow(0.65 - dot(N, viewDir), 4) rim formula
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1.18, 64, 32),
+    new THREE.ShaderMaterial({
+      vertexShader: /* glsl */`
+        varying vec3 vN;
+        void main() {
+          vN = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        varying vec3 vN;
+        void main() {
+          float i = pow(0.65 - dot(vN, vec3(0.0, 0.0, 1.0)), 4.0);
+          gl_FragColor = vec4(0.22, 0.52, 1.0, 1.0) * i;
+        }
+      `,
+      side:        THREE.BackSide,
+      blending:    THREE.AdditiveBlending,
+      transparent: true,
+      depthWrite:  false,
+    })
+  ));
+
+  // ── Atmosphere: inner rim glow (FrontSide thin shell) ─────
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1.006, 64, 32),
+    new THREE.ShaderMaterial({
+      vertexShader: /* glsl */`
+        varying vec3 vN;
+        void main() {
+          vN = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        varying vec3 vN;
+        void main() {
+          float i = pow(1.0 - dot(vN, vec3(0.0, 0.0, 1.0)), 3.0);
+          gl_FragColor = vec4(0.22, 0.52, 1.0, 0.3) * i;
+        }
+      `,
+      blending:    THREE.AdditiveBlending,
+      transparent: true,
+      depthWrite:  false,
+    })
+  ));
+
+  // ── Starfield ─────────────────────────────────────────────
+  const STAR_COUNT = 4500;
+  const sPos = new Float32Array(STAR_COUNT * 3);
+
+  for (let i = 0; i < STAR_COUNT; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(2 * Math.random() - 1);
+    const r     = 100 + Math.random() * 60;
+    sPos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+    sPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    sPos[i * 3 + 2] = r * Math.cos(phi);
+  }
+
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+
+  scene.add(new THREE.Points(starGeo,
+    new THREE.PointsMaterial({
+      color:           0xffffff,
+      size:            0.18,
+      transparent:     true,
+      opacity:         0.8,
+      sizeAttenuation: true,
+    })
+  ));
+
+  // ── Ambient light (subtle cool tint to match ink palette) ─
+  scene.add(new THREE.AmbientLight(0x111122, 0.8));
+
+  // ── Mouse drag + inertia ──────────────────────────────────
+  let dragging = false;
+  let prev     = { x: 0, y: 0 };
+  let vel      = { x: 0, y: 0 };
+
+  const cnv = renderer.domElement;
+
+  cnv.addEventListener('mousedown', e => {
+    dragging = true;
+    prev     = { x: e.clientX, y: e.clientY };
+    vel      = { x: 0, y: 0 };
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - prev.x;
+    const dy = e.clientY - prev.y;
+    vel.x = dy * 0.004;
+    vel.y = dx * 0.004;
+    earth.rotation.x  += vel.x;
+    earth.rotation.y  += vel.y;
+    clouds.rotation.x += vel.x;
+    clouds.rotation.y += vel.y;
+    prev = { x: e.clientX, y: e.clientY };
+  });
+
+  window.addEventListener('mouseup',    () => { dragging = false; });
+  window.addEventListener('mouseleave', () => { dragging = false; });
+
+  // ── Touch support ─────────────────────────────────────────
+  cnv.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    dragging = true;
+    prev     = { x: t.clientX, y: t.clientY };
+    vel      = { x: 0, y: 0 };
+  }, { passive: true });
+
+  cnv.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const t  = e.touches[0];
+    const dx = t.clientX - prev.x;
+    const dy = t.clientY - prev.y;
+    vel.x = dy * 0.004;
+    vel.y = dx * 0.004;
+    earth.rotation.x  += vel.x;
+    earth.rotation.y  += vel.y;
+    clouds.rotation.x += vel.x;
+    clouds.rotation.y += vel.y;
+    prev = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+
+  cnv.addEventListener('touchend', () => { dragging = false; });
+
+  // ── Animation loop ────────────────────────────────────────
+  (function loop() {
+    requestAnimationFrame(loop);
+
+    if (!dragging && !window._hoverPause && !window._userPausedRotation) {
+      // Auto-rotation (clouds slightly faster than earth)
+      earth.rotation.y  += 0.0008;
+      clouds.rotation.y += 0.001;
+
+      // Post-drag inertia
+      if (Math.abs(vel.x) > 0.00005 || Math.abs(vel.y) > 0.00005) {
+        earth.rotation.x  += vel.x;
+        earth.rotation.y  += vel.y;
+        clouds.rotation.x += vel.x;
+        clouds.rotation.y += vel.y;
+        vel.x *= 0.94;
+        vel.y *= 0.94;
+      }
+    }
+
+    renderer.render(scene, camera);
+  })();
+
+  // ── Resize ────────────────────────────────────────────────
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  </script>
+
+  <!-- ── Overlay sprites + Tooltip ──────────────────────────── -->
+  <div id="sprite-overlay"></div>
+  <div id="ev-tooltip">
+    <div id="ev-card">
+      <div id="ev-cat-tag"></div>
+      <div id="ev-title"></div>
+      <div id="ev-date"></div>
+      <div id="ev-region"></div>
+    </div>
+    <div id="ev-line"></div>
+  </div>
+
+  <!-- ── Contrôles gauche (soleil + rotation) ─────────────── -->
+  <div id="controls-left">
+    <div id="sun-control">
+      <svg id="sun-svg" viewBox="0 0 120 120" width="120" height="120">
+        <!-- Cercle complet draggable — 360° -->
+        <circle cx="60" cy="60" r="50"
+          fill="none"
+          stroke="rgba(201,168,76,0.32)" stroke-width="1.5"/>
+        <!-- Icône soleil au centre de l'anneau -->
+        <g stroke="rgba(201,168,76,0.48)" stroke-width="1" stroke-linecap="round">
+          <circle cx="60" cy="60" r="3.5" fill="rgba(201,168,76,0.18)"/>
+          <line x1="60" y1="51"   x2="60" y2="54.5"/>
+          <line x1="60" y1="65.5" x2="60" y2="69"/>
+          <line x1="69" y1="60"   x2="72.5" y2="60"/>
+          <line x1="51" y1="60"   x2="47.5" y2="60"/>
+          <line x1="66.5" y1="53.5" x2="68.9" y2="51.1"/>
+          <line x1="53.5" y1="53.5" x2="51.1" y2="51.1"/>
+          <line x1="66.5" y1="66.5" x2="68.9" y2="68.9"/>
+          <line x1="53.5" y1="66.5" x2="51.1" y2="68.9"/>
+        </g>
+      </svg>
+      <div id="sun-handle"></div>
+      <span id="sun-label">Soleil</span>
+    </div>
+
+    <button id="rotation-toggle" title="Pause rotation">
+      <span id="rotation-icon">⏸</span>
+    </button>
+    <div id="rotation-label">Rotation de la Terre</div>
+  </div>
+
+  <script>
+  (function () {
+    let userPausedRotation = false;
+    const rotationToggle = document.getElementById('rotation-toggle');
+    const rotationIcon   = document.getElementById('rotation-icon');
+
+    rotationToggle.addEventListener('click', () => {
+      userPausedRotation = !userPausedRotation;
+
+      if (userPausedRotation) {
+        rotationIcon.textContent = '▶';
+        rotationToggle.classList.add('paused');
+        rotationToggle.title = 'Reprendre rotation';
+      } else {
+        rotationIcon.textContent = '⏸';
+        rotationToggle.classList.remove('paused');
+        rotationToggle.title = 'Pause rotation';
+      }
+
+      window._userPausedRotation = userPausedRotation;
+    });
+  })();
+  </script>
+
+  <!-- ── Timeline ─────────────────────────────────────────── -->
+  <div id="timeline">
+    <div id="tl-wrapper">
+      <div id="tl-year">300&#8239;000 av. J.-C.</div>
+      <input type="range" id="tl-slider" min="0" max="1000" value="0" />
+    </div>
+    <div id="tl-era">Préhistoire</div>
+  </div>
+
+  <script>
+  /* ── Timeline ──────────────────────────────────────────────
+     IIFE isolé — aucun couplage avec le code globe ci-dessus.
+  ─────────────────────────────────────────────────────────── */
+  (function () {
+    const slider = document.getElementById('tl-slider');
+    const yearEl = document.getElementById('tl-year');
+    const eraEl  = document.getElementById('tl-era');
+
+    const GOLD  = '#c9a84c';
+    const EMPTY = 'rgba(245, 240, 232, 0.18)';
+    const THUMB = 9; // rayon du thumb (18px / 2)
+
+    const CURRENT_YEAR = new Date().getFullYear();
+
+    /* Breakpoints piecewise : t ∈ [0,1] → année historique */
+    const BP = [
+      { t: 0.00, y: -300000 },
+      { t: 0.15, y:  -10000 },
+      { t: 0.30, y:   -3000 },
+      { t: 0.45, y:       0 },
+      { t: 0.60, y:     500 },
+      { t: 0.75, y:    1500 },
+      { t: 0.85, y:    1900 },
+      { t: 1.00, y: CURRENT_YEAR },
+    ];
+
+    function sliderToYear(v) {
+      const t = v / 1000;
+      for (let i = 0; i < BP.length - 1; i++) {
+        if (t >= BP[i].t && t <= BP[i + 1].t) {
+          const a = (t - BP[i].t) / (BP[i + 1].t - BP[i].t);
+          return BP[i].y + a * (BP[i + 1].y - BP[i].y);
+        }
+      }
+      return BP[BP.length - 1].y;
+    }
+
+    function formatYear(y) {
+      const n = Math.round(y);
+      // Narrow no-break space ( ) comme séparateur de milliers
+      const fmt = Math.abs(n).toLocaleString('fr-FR');
+      if (n <= 0)   return fmt + ' av. J.-C.';
+      if (n < 1000) return fmt + ' ap. J.-C.';
+      return fmt;
+    }
+
+    function getEra(year) {
+      if (!window._eras) return '';
+
+      const matching = window._eras.filter(e =>
+        year >= e.startYear && year <= e.endYear
+      );
+
+      if (matching.length === 0) return '';
+
+      matching.sort((a, b) =>
+        (a.endYear - a.startYear) - (b.endYear - b.startYear)
+      );
+
+      return matching[0].label;
+    }
+
+    /* Intensité lumières de nuit (0.0 → 1.0) selon l'année */
+    const NL_BP = [
+      { y: -3000, i: 0.00 },
+      { y:     0, i: 0.04 },
+      { y:  1500, i: 0.15 },
+      { y:  1800, i: 0.30 },
+      { y:  1900, i: 0.60 },
+      { y:  CURRENT_YEAR, i: 1.00 },
+    ];
+
+    function yearToNightLights(year) {
+      if (year < -3000) return 0.0;
+      for (let i = 0; i < NL_BP.length - 1; i++) {
+        if (year >= NL_BP[i].y && year <= NL_BP[i + 1].y) {
+          const a = (year - NL_BP[i].y) / (NL_BP[i + 1].y - NL_BP[i].y);
+          return NL_BP[i].i + a * (NL_BP[i + 1].i - NL_BP[i].i);
+        }
+      }
+      return NL_BP[NL_BP.length - 1].i;
+    }
+
+    function placeLabel(v) {
+      const ratio  = v / 1000;
+      const trackW = slider.offsetWidth;
+      // Centre exact du thumb en px
+      const rawPx  = ratio * (trackW - 2 * THUMB) + THUMB;
+      // Clamp pour éviter le débordement du label aux extrémités
+      const halfLbl = yearEl.offsetWidth / 2;
+      yearEl.style.left = Math.max(halfLbl, Math.min(trackW - halfLbl, rawPx)) + 'px';
+    }
+
+    function update() {
+      const v    = +slider.value;
+      const year = sliderToYear(v);
+      const pct  = (v / 1000) * 100;
+
+      yearEl.textContent = formatYear(year);
+      eraEl.textContent  = window._eras ? getEra(year) : '';
+
+      // Gradient WebKit : portion gold à gauche, vide à droite
+      slider.style.background =
+        `linear-gradient(to right, ${GOLD} ${pct}%, ${EMPTY} ${pct}%)`;
+
+      placeLabel(v);
+
+      if (window._earthMat) {
+        window._earthMat.uniforms.uNightLights.value = yearToNightLights(year);
+      }
+      localStorage.setItem('chronos-slider', slider.value);
+    }
+
+    slider.addEventListener('input', update);
+    window.addEventListener('resize', () => placeLabel(+slider.value));
+
+    const saved = localStorage.getItem('chronos-slider');
+    if (saved !== null) {
+      slider.value = saved;
+    }
+
+    update(); // initialisation → restaure la position sauvegardée ou t=0
+  })();
+  </script>
+
+  <script>
+  /* ── Contrôle orbital soleil ───────────────────────────────
+     uSun est en world space — le vecteur produit ici est dans
+     le même repère que vNormalW dans le vertex shader.
+     β = 0 → soleil en haut (+Y)
+     β = π/2 → soleil à droite (+X)
+     β = π   → soleil en bas  (−Y)
+  ─────────────────────────────────────────────────────────── */
+  (function () {
+    const control = document.getElementById('sun-control');
+    const handle  = document.getElementById('sun-handle');
+
+    // Géométrie SVG de l'anneau (en px, SVG viewBox 1:1 avec le rendu)
+    const R = 50, CX = 60, CY = 60;
+
+    let beta    = 0;     // angle courant [0, π]
+    let sunDrag = false;
+
+    function applyBeta(b) {
+      // Normalise dans [0, 2π] pour la rotation complète
+      beta = ((b % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+
+      // Positionner le handle sur l'arc
+      handle.style.left = (CX + R * Math.sin(beta)) + 'px';
+      handle.style.top  = (CY - R * Math.cos(beta)) + 'px';
+
+      // Mettre à jour le uniform uSun (world space)
+      // sin(β) → composante X, cos(β) → composante Y, 0.5 → profondeur fixe
+      if (window._earthMat) {
+        window._earthMat.uniforms.uSun.value
+          .set(Math.sin(beta), 0.3, Math.cos(beta))
+          .normalize();
+      }
+    }
+
+    function betaFromEvent(e) {
+      const c  = e.touches ? e.touches[0] : e;
+      const r  = control.getBoundingClientRect();
+      const lx = c.clientX - r.left;
+      const ly = c.clientY - r.top;
+      // atan2(sin, cos) avec sin = (lx-CX)/R, cos = (CY-ly)/R
+      return Math.atan2(lx - CX, CY - ly);
+    }
+
+    // Clic/drag sur n'importe quelle partie du contrôle
+    control.addEventListener('mousedown', e => {
+      sunDrag = true;
+      applyBeta(betaFromEvent(e));
+      e.preventDefault(); // évite la sélection de texte pendant le drag
+    });
+    window.addEventListener('mousemove', e => {
+      if (sunDrag) applyBeta(betaFromEvent(e));
+    });
+    window.addEventListener('mouseup', () => { sunDrag = false; });
+
+    control.addEventListener('touchstart', e => {
+      sunDrag = true;
+      applyBeta(betaFromEvent(e));
+    }, { passive: true });
+    window.addEventListener('touchmove', e => {
+      if (sunDrag) applyBeta(betaFromEvent(e));
+    }, { passive: true });
+    window.addEventListener('touchend', () => { sunDrag = false; });
+
+    applyBeta(0); // position initiale : soleil en haut
+  })();
+  </script>
+
+  <script>
+  /* ── Points de Civilisation — Sprites + Overlay HTML ──────
+     Hover via mouseenter/mouseleave sur div hitzones.
+     Zéro raycaster, zéro détection JS de position souris.
+  ─────────────────────────────────────────────────────────── */
+  (function () {
+
+    const CURRENT_YEAR = new Date().getFullYear();
+    const BP = [
+      { t: 0.00, y: -300000 },
+      { t: 0.15, y:  -10000 },
+      { t: 0.30, y:   -3000 },
+      { t: 0.45, y:       0 },
+      { t: 0.60, y:     500 },
+      { t: 0.75, y:    1500 },
+      { t: 0.85, y:    1900 },
+      { t: 1.00, y: CURRENT_YEAR },
+    ];
+
+    function sliderToYear(v) {
+      const t = v / 1000;
+      for (let i = 0; i < BP.length - 1; i++) {
+        if (t >= BP[i].t && t <= BP[i + 1].t) {
+          const a = (t - BP[i].t) / (BP[i + 1].t - BP[i].t);
+          return BP[i].y + a * (BP[i + 1].y - BP[i].y);
+        }
+      }
+      return BP[BP.length - 1].y;
+    }
+
+    // ── Couleurs catégories ────────────────────────────────────
+    const ERA_FILES = [
+      '01-prehistoire','02-antiquite','03-inde-chine','04-ameriques',
+      '05-grece-rome','06-moyen-age','07-islam','08-afrique-oceanie',
+      '09-renaissance','10-lumieres','11-industriel','12-xxe','13-xxie'
+    ];
+
+    async function loadData() {
+      const [categories, erasData, ...eventsData] = await Promise.all([
+        fetch('./data/categories.json').then(r => r.json()),
+        fetch('./data/eras.json').then(r => r.json()),
+        ...ERA_FILES.map(f => fetch('./data/' + f + '.json').then(r => r.json()))
+      ]);
+      window._categories = categories;
+      window._eras = erasData;
+      const sliderEl = document.getElementById('tl-slider');
+      if (sliderEl) sliderEl.dispatchEvent(new Event('input'));
+      return { categories, events: eventsData.flat() };
+    }
+
+    function getCatColor(catId) {
+      const cat = (window._categories || []).find(c => c.id === catId);
+      return cat ? cat.color : '#ffffff';
+    }
+
+    function getCatLabel(catId) {
+      const cat = (window._categories || []).find(c => c.id === catId);
+      return cat ? cat.label : catId;
+    }
+
+    window.getCatColor = getCatColor;
+    window.getCatLabel = getCatLabel;
+
+    // ── Utilitaires ────────────────────────────────────────────
+    function latLngToVec3(lat, lng) {
+      const phi   = (90 - lat) * Math.PI / 180;
+      const theta = (lng + 180) * Math.PI / 180;
+      const R = 1.02;
+      return new THREE.Vector3(
+        -R * Math.sin(phi) * Math.cos(theta),
+         R * Math.cos(phi),
+         R * Math.sin(phi) * Math.sin(theta)
+      );
+    }
+
+    function hexToRgba(hex, a) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    function smoothstep(e0, e1, x) {
+      if (e1 <= e0) return x >= e1 ? 1 : 0;
+      const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+      return t * t * (3 - 2 * t);
+    }
+
+    function getOpacity(ev, year) {
+      const fade    = ev.year < 0 ? 200 : 50;
+      const fadeIn  = smoothstep(ev.year - fade, ev.year, year);
+      const fadeOut = 1 - smoothstep(ev.yearEnd, ev.yearEnd + fade, year);
+      return Math.min(fadeIn, fadeOut);
+    }
+
+    function formatDate(year, yearEnd) {
+      const fmt = y => {
+        const n = Math.round(y);
+        if (n <= 0) return Math.abs(n).toLocaleString('fr-FR') + ' av. J.-C.';
+        if (n < 1000) return n + ' ap. J.-C.';
+        return n.toLocaleString('fr-FR');
+      };
+      return year === yearEnd ? fmt(year) : fmt(year) + ' — ' + fmt(yearEnd);
+    }
+
+    // ── Génération texture canvas par catégorie ────────────────
+    function createSpriteTexture(hex) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const cx = 64, cy = 64;
+
+      // 1. Halo externe r=64, opacity 0.15
+      const g1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, 64);
+      g1.addColorStop(0, hexToRgba(hex, 0.15));
+      g1.addColorStop(1, hexToRgba(hex, 0));
+      ctx.fillStyle = g1;
+      ctx.fillRect(0, 0, 128, 128);
+
+      // 2. Halo intermediaire r=45, opacity 0.25
+      const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, 45);
+      g2.addColorStop(0, hexToRgba(hex, 0.25));
+      g2.addColorStop(1, hexToRgba(hex, 0));
+      ctx.fillStyle = g2;
+      ctx.fillRect(0, 0, 128, 128);
+
+      // 3. Border sombre r=16, lineWidth 3
+      ctx.beginPath();
+      ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // 4. Cercle colore plein r=14, opacity 0.95
+      ctx.beginPath();
+      ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(hex, 0.95);
+      ctx.fill();
+
+      // 5. Highlight blanc r=4, offset (-4,-4)
+      ctx.beginPath();
+      ctx.arc(cx - 4, cy - 4, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fill();
+
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    const BASE_SCALE = 0.18;
+    let allEvents   = [];
+    let sprites     = [];
+    let hitzones    = [];
+    let currentYear = -300000;
+    let hoveredIdx  = -1;
+    let activeFilter = 'all';
+
+    const _sv  = new THREE.Vector3();
+    const _cv  = new THREE.Vector3();
+    const _nv  = new THREE.Vector3();
+    const _tmp = new THREE.Vector3();
+
+    const tooltipEl = document.getElementById('ev-tooltip');
+    const catTagEl  = document.getElementById('ev-cat-tag');
+    const titleEl   = document.getElementById('ev-title');
+    const dateEl    = document.getElementById('ev-date');
+    const regionEl  = document.getElementById('ev-region');
+
+    function showTooltip(ev, hitzone) {
+      const x = parseInt(hitzone.style.left);
+      const y = parseInt(hitzone.style.top);
+
+      catTagEl.textContent  = getCatLabel(ev.cat);
+      catTagEl.style.color  = getCatColor(ev.cat);
+      titleEl.textContent   = ev.title;
+      dateEl.textContent    = formatDate(ev.year, ev.yearEnd);
+      regionEl.textContent  = ev.region;
+
+      // Le tooltip est toujours display:flex (opacity:0) — offsetHeight est fiable
+      const h = tooltipEl.offsetHeight || 140;
+      tooltipEl.style.left = x + 'px';
+      tooltipEl.style.top  = (y - h - 8) + 'px';
+      tooltipEl.classList.add('visible');
+    }
+
+    function hideTooltip() {
+      tooltipEl.classList.remove('visible');
+    }
+
+    function applyMouseOver(idx) {
+      hoveredIdx = idx;
+      sprites[idx].scale.setScalar(BASE_SCALE * 2.2);
+      sprites[idx].material.opacity = 1.0;
+      window._hoverPause = true;
+      showTooltip(allEvents[idx], hitzones[idx]);
+    }
+
+    function applyMouseOut() {
+      if (hoveredIdx >= 0) {
+        const op = getOpacity(allEvents[hoveredIdx], currentYear);
+        if (op <= 0.01) {
+          sprites[hoveredIdx].visible = false;
+        } else {
+          sprites[hoveredIdx].material.opacity = op;
+        }
+      }
+      hoveredIdx = -1;
+      window._hoverPause = false;
+      hideTooltip();
+    }
+
+    function selectEvent(ev) {
+      window.selectedEvent = ev;
+      window.dispatchEvent(new CustomEvent('eventSelected', { detail: ev }));
+    }
+
+    function applyClusterOffsets(events) {
+      const R         = 1.02;
+      const THRESHOLD = 0.08;
+      const OFFSET_R  = 0.06;
+
+      const positions = events.map(ev => latLngToVec3(ev.lat, ev.lng));
+      const visited   = new Array(events.length).fill(false);
+      const groups    = [];
+
+      for (let i = 0; i < events.length; i++) {
+        if (visited[i]) continue;
+        const group = [i];
+        visited[i] = true;
+        for (let j = 0; j < group.length; j++) {
+          const gi = group[j];
+          for (let k = 0; k < events.length; k++) {
+            if (visited[k]) continue;
+            if (positions[gi].distanceTo(positions[k]) < THRESHOLD) {
+              group.push(k);
+              visited[k] = true;
+            }
+          }
+        }
+        if (group.length > 1) groups.push(group);
+      }
+
+      groups.forEach(group => {
+        const N      = group.length;
+        const refPos = positions[group[0]];
+        const normal = refPos.clone().normalize();
+
+        let tangent1 = new THREE.Vector3().crossVectors(normal, new THREE.Vector3(0, 1, 0));
+        if (tangent1.length() < 0.001) {
+          tangent1.crossVectors(normal, new THREE.Vector3(1, 0, 0));
+        }
+        tangent1.normalize();
+        const tangent2 = new THREE.Vector3().crossVectors(normal, tangent1).normalize();
+
+        group.forEach((evIdx, i) => {
+          const angle = (Math.PI * 2 / N) * i;
+          const offset = new THREE.Vector3()
+            .addScaledVector(tangent1, Math.cos(angle))
+            .addScaledVector(tangent2, Math.sin(angle))
+            .multiplyScalar(OFFSET_R);
+          positions[evIdx].add(offset).normalize().multiplyScalar(R);
+        });
+      });
+
+      return positions;
+    }
+
+    function buildSprites(events) {
+      const earth     = window._earth;
+      const overlay   = document.getElementById('sprite-overlay');
+      if (!earth || !overlay) return;
+
+      const positions = applyClusterOffsets(events);
+
+      const baseMats = {};
+      (window._categories || []).forEach(({ id, color }) => {
+        baseMats[id] = new THREE.SpriteMaterial({
+          map:         createSpriteTexture(color),
+          transparent: true,
+          opacity:     1.0,
+          depthWrite:  false,
+          blending:    THREE.AdditiveBlending,
+        });
+      });
+
+      events.forEach((ev, idx) => {
+        const mat    = (baseMats[ev.cat] || baseMats.sc).clone();
+        const sprite = new THREE.Sprite(mat);
+        sprite.position.copy(positions[idx]);
+        sprite.material.opacity = 0;
+        sprite.scale.setScalar(BASE_SCALE);
+        sprite.visible = false;
+        earth.add(sprite);
+        sprites.push(sprite);
+
+        const div = document.createElement('div');
+        div.className  = 'sprite-hit';
+        div.dataset.id = ev.id;
+        div.style.display = 'none';
+        div.addEventListener('mouseenter', () => applyMouseOver(idx));
+        div.addEventListener('mouseleave', () => applyMouseOut());
+        div.addEventListener('click',      () => selectEvent(ev));
+        overlay.appendChild(div);
+        hitzones.push(div);
+      });
+    }
+
+    function applyFilter() {
+      allEvents.forEach((ev, i) => {
+        sprites[i]._filtered = activeFilter !== 'all' && ev.cat !== activeFilter;
+      });
+      if (window.selectedEvent && activeFilter !== 'all' && window.selectedEvent.cat !== activeFilter) {
+        if (window._closePanel) window._closePanel();
+      }
+      updateVisibility(currentYear);
+    }
+
+    function buildFilters(categories) {
+      const list = document.getElementById('filters-list');
+      if (!list) return;
+
+      const allBtn = document.createElement('button');
+      allBtn.className = 'fbt active';
+      allBtn.dataset.cat = 'all';
+      allBtn.textContent = 'Tout';
+      list.appendChild(allBtn);
+
+      categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'fbt';
+        btn.dataset.cat = cat.id;
+        btn.dataset.color = cat.color;
+        btn.textContent = cat.label;
+        list.appendChild(btn);
+      });
+
+      list.querySelectorAll('.fbt').forEach(btn => {
+        btn.addEventListener('click', () => {
+          list.querySelectorAll('.fbt').forEach(b => {
+            b.classList.remove('active');
+            b.style.color = '';
+            b.style.borderColor = '';
+            b.style.background = '';
+          });
+          btn.classList.add('active');
+          if (btn.dataset.cat === 'all') {
+            btn.style.color = '#c9a84c';
+            btn.style.borderColor = 'rgba(201,168,76,0.5)';
+            btn.style.background = 'rgba(201,168,76,0.08)';
+          } else {
+            const color = btn.dataset.color;
+            btn.style.color = color;
+            btn.style.borderColor = color + '80';
+            btn.style.background = color + '15';
+          }
+          activeFilter = btn.dataset.cat;
+          applyFilter();
+        });
+      });
+
+      allBtn.style.color = '#c9a84c';
+      allBtn.style.borderColor = 'rgba(201,168,76,0.5)';
+      allBtn.style.background = 'rgba(201,168,76,0.08)';
+    }
+
+    function updateVisibility(year) {
+      allEvents.forEach((ev, i) => {
+        if (i === hoveredIdx) return;
+        if (sprites[i]._filtered) {
+          sprites[i].visible = false;
+        }
+        // opacité non-filtrée gérée par animLoop (interpolation)
+      });
+
+      if (hoveredIdx >= 0 && getOpacity(allEvents[hoveredIdx], year) <= 0.01) {
+        applyMouseOut();
+      }
+    }
+
+    function animLoop() {
+      requestAnimationFrame(animLoop);
+      const now = Date.now();
+      const cam = window._camera;
+
+      if (cam) {
+        _cv.copy(cam.position).negate().normalize();
+      }
+
+      sprites.forEach((sprite, i) => {
+        // Interpolation douce de l'opacité vers la cible
+        if (i !== hoveredIdx && !sprite._filtered) {
+          const target = getOpacity(allEvents[i], currentYear);
+          const next   = sprite.material.opacity + (target - sprite.material.opacity) * 0.08;
+          sprite.material.opacity = next;
+          sprite.visible = next > 0.01;
+        }
+
+        const hz = hitzones[i];
+
+        if (!sprite.visible || !cam) {
+          hz.style.display = 'none';
+        } else {
+          sprite.getWorldPosition(_sv);
+          _tmp.copy(_sv).normalize();
+          if (_tmp.dot(_cv) > -0.1) {
+            hz.style.display = 'none';
+          } else {
+            _nv.copy(_sv).project(cam);
+            const sx = (_nv.x *  0.5 + 0.5) * window.innerWidth;
+            const sy = (-_nv.y * 0.5 + 0.5) * window.innerHeight;
+            hz.style.left    = sx + 'px';
+            hz.style.top     = sy + 'px';
+            hz.style.display = 'block';
+          }
+        }
+
+        if (!sprite.visible || i === hoveredIdx) return;
+        const s = BASE_SCALE * (1.0 + 0.12 * Math.sin(now * 0.002 + i * 0.5));
+        sprite.scale.setScalar(s);
+      });
+    }
+
+    async function init() {
+      const histEl = document.getElementById('history-loading');
+      try {
+        const data = await loadData();
+        allEvents = data.events;
+        buildFilters(data.categories);
+      } catch (err) {
+        console.error('Erreur chargement événements :', err);
+        if (histEl) histEl.classList.add('hidden');
+        return;
+      }
+
+      buildSprites(allEvents);
+
+      const slider = document.getElementById('tl-slider');
+      currentYear  = sliderToYear(+slider.value);
+      updateVisibility(currentYear);
+
+      slider.addEventListener('input', () => {
+        currentYear = sliderToYear(+slider.value);
+        updateVisibility(currentYear);
+      });
+
+      animLoop();
+
+      if (histEl) {
+        histEl.classList.add('hidden');
+        setTimeout(() => histEl.remove(), 900);
+      }
+
+      const introEl = document.getElementById('intro-screen');
+      if (introEl) {
+        setTimeout(() => {
+          introEl.classList.add('hide');
+          setTimeout(() => introEl.remove(), 1200);
+        }, 2800);
+      }
+    }
+
+    init();
+  })();
+  </script>
+
+  <!-- ── Filtres catégories ───────────────────────────────────── -->
+  <div id="filters">
+    <div id="filters-label">Filtres</div>
+    <div id="filters-list"></div>
+  </div>
+
+  <!-- ── Panel latéral ──────────────────────────────────────── -->
+  <div id="side-panel">
+    <button id="panel-close">&#x2715;</button>
+    <div id="panel-content">
+      <div id="panel-cat-tag"></div>
+      <div id="panel-era"></div>
+      <h2 id="panel-title"></h2>
+      <div id="panel-date"></div>
+      <div id="panel-region">
+        <span id="panel-region-icon">&#9678;</span>
+        <span id="panel-region-text"></span>
+      </div>
+      <div id="panel-divider"></div>
+      <p id="panel-desc"></p>
+    </div>
+  </div>
+
+  <div id="panel-overlay"></div>
+
+  <script>
+  /* ── Panel latéral — écoute eventSelected ────────────────── */
+  (function () {
+    const panel          = document.getElementById('side-panel');
+    const overlay        = document.getElementById('panel-overlay');
+    const panelClose     = document.getElementById('panel-close');
+    const panelCatTag    = document.getElementById('panel-cat-tag');
+    const panelEra       = document.getElementById('panel-era');
+    const panelTitle     = document.getElementById('panel-title');
+    const panelDate      = document.getElementById('panel-date');
+    const panelRegionText = document.getElementById('panel-region-text');
+    const panelDesc      = document.getElementById('panel-desc');
+
+    function formatYear(y) {
+      const n   = Math.round(y);
+      const fmt = Math.abs(n).toLocaleString('fr-FR');
+      if (n <= 0)   return fmt + ' av. J.-C.';
+      if (n < 1000) return fmt + ' ap. J.-C.';
+      return fmt;
+    }
+
+    function getEraFromYear(year) {
+      if (year < -3500) return 'Préhistoire';
+      if (year < -1200) return 'Premières Civilisations';
+      if (year < -800)  return 'Inde & Chine / Amériques';
+      if (year < 476)   return 'Grèce & Rome';
+      if (year < 1453)  return 'Moyen Âge';
+      if (year < 1620)  return 'Renaissance';
+      if (year < 1815)  return 'Lumières';
+      if (year < 1914)  return 'Ère Industrielle';
+      if (year < 2000)  return 'XXe Siècle';
+      return 'XXIe Siècle';
+    }
+
+    function openPanel(ev) {
+      const color = window.getCatColor ? window.getCatColor(ev.cat) : '#c9a84c';
+
+      panelCatTag.textContent       = window.getCatLabel ? window.getCatLabel(ev.cat) : ev.cat;
+      panelCatTag.style.color       = color;
+      panelCatTag.style.borderColor = color + '55';
+
+      panelEra.textContent = getEraFromYear(ev.year);
+
+      panelTitle.textContent = ev.title;
+
+      panelDate.textContent = ev.yearEnd && ev.yearEnd !== ev.year
+        ? formatYear(ev.year) + ' — ' + formatYear(ev.yearEnd)
+        : formatYear(ev.year);
+
+      panelRegionText.textContent = ev.region;
+
+      panelDesc.textContent = ev.desc || '';
+
+      panel.classList.add('open');
+      overlay.classList.add('active');
+    }
+
+    function closePanel() {
+      panel.classList.remove('open');
+      overlay.classList.remove('active');
+    }
+
+    window._closePanel = closePanel;
+
+    window.addEventListener('eventSelected', e => openPanel(e.detail));
+    panelClose.addEventListener('click', closePanel);
+    overlay.addEventListener('click', closePanel);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+  })();
+  </script>
+</body>
+</html>

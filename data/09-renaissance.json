@@ -1,0 +1,7 @@
+[
+  {"id":"colomb","title":"Christophe Colomb — Les Amériques","year":1492,"yearEnd":1493,"lat":24.0,"lng":-74.0,"cat":"ex","region":"Caraïbes","desc":"En cherchant les Indes par l'ouest, arrive aux Bahamas. Déclenche l'échange colombien."},
+  {"id":"leonard","title":"Léonard de Vinci","year":1452,"yearEnd":1519,"lat":45.8,"lng":10.9,"cat":"ar","region":"Florence","desc":"Peintre, ingénieur, anatomiste. Symbole absolu de la Renaissance."},
+  {"id":"luther","title":"Réforme Protestante — Luther","year":1517,"yearEnd":1530,"lat":51.8,"lng":12.6,"cat":"re","region":"Wittenberg","desc":"95 thèses contre les indulgences. Scission de l'Église, liberté de conscience."},
+  {"id":"copernic","title":"Copernic — Révolution Héliocentrique","year":1543,"yearEnd":1550,"lat":53.7,"lng":20.5,"cat":"sc","region":"Pologne","desc":"Place le Soleil au centre. Rupture avec 1400 ans de géocentrisme."},
+  {"id":"shakespeare","title":"Shakespeare","year":1590,"yearEnd":1613,"lat":51.5,"lng":-0.1,"cat":"ar","region":"Londres","desc":"38 pièces. Invente ~1700 mots anglais encore utilisés. L'oeuvre la plus jouée au monde."}
+]

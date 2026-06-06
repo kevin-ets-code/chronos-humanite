@@ -1,0 +1,6 @@
+[
+  {"id":"iphone","title":"L'iPhone — Révolution Mobile","year":2007,"yearEnd":2010,"lat":37.3,"lng":-122.0,"cat":"te","region":"San Francisco","desc":"6,5 milliards de smartphones dans le monde. Révolution des relations humaines."},
+  {"id":"crispr","title":"CRISPR-Cas9 — Ciseaux Génétiques","year":2012,"yearEnd":2020,"lat":37.8,"lng":-122.2,"cat":"sc","region":"Berkeley","desc":"Modification précise de l'ADN. Nobel 2020. Première thérapie approuvée 2023."},
+  {"id":"accord-paris","title":"Accord de Paris sur le Climat","year":2015,"yearEnd":2016,"lat":48.8,"lng":2.3,"cat":"po","region":"Paris","desc":"195 pays s'engagent à limiter le réchauffement à 1,5°C."},
+  {"id":"chatgpt","title":"ChatGPT & l'IA Générative","year":2022,"yearEnd":2026,"lat":37.3,"lng":-122.0,"cat":"te","region":"San Francisco","desc":"100 millions d'utilisateurs en 2 mois. Révolution cognitive comparable à l'imprimerie."}
+]

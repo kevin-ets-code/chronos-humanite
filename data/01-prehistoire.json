@@ -1,0 +1,7 @@
+[
+  {"id":"homo-sapiens","title":"Apparition d'Homo sapiens","year":-300000,"yearEnd":-200000,"lat":33.9,"lng":-8.4,"cat":"sc","region":"Afrique du Nord","desc":"Premiers humains anatomiquement modernes à Jebel Irhoud (Maroc). Notre espèce émerge en Afrique, distincte des Néandertaliens."},
+  {"id":"peuplement-australie","title":"Peuplement de l'Australie","year":-65000,"yearEnd":-60000,"lat":-25.0,"lng":133.0,"cat":"ex","region":"Australie","desc":"Les premiers humains arrivent en Australie par voie maritime depuis l'Asie du Sud-Est."},
+  {"id":"peuplement-ameriques","title":"Peuplement des Amériques","year":-20000,"yearEnd":-10000,"lat":64.0,"lng":-168.0,"cat":"ex","region":"Béring","desc":"Des groupes humains franchissent le détroit de Béring depuis la Sibérie."},
+  {"id":"art-rupestre","title":"Art Rupestre — Chauvet, Lascaux","year":-40000,"yearEnd":-10000,"lat":44.8,"lng":5.9,"cat":"ar","region":"Europe occidentale","desc":"Peintures rupestres sophistiquées : mammouths, rhinocéros laineux, bisons représentés avec perspective et mouvement."},
+  {"id":"revolution-neolithique","title":"Révolution Néolithique","year":-10000,"yearEnd":-5000,"lat":36.0,"lng":38.0,"cat":"te","region":"Proche-Orient","desc":"Invention de l'agriculture au Croissant Fertile : blé, orge, lentilles cultivés. Fin du nomadisme."}
+]

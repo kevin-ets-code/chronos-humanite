@@ -1,0 +1,6 @@
+[
+  {"id":"newton","title":"Newton — Principia Mathematica","year":1687,"yearEnd":1700,"lat":52.2,"lng":0.1,"cat":"sc","region":"Cambridge","desc":"Gravitation universelle, trois lois du mouvement, calcul infinitésimal."},
+  {"id":"usa-independance","title":"Indépendance des États-Unis","year":1776,"yearEnd":1783,"lat":39.9,"lng":-75.2,"cat":"po","region":"Philadelphie","desc":"Première grande démocratie républicaine moderne."},
+  {"id":"revolution-fr","title":"Révolution Française","year":1789,"yearEnd":1799,"lat":48.8,"lng":2.3,"cat":"po","region":"Paris","desc":"Bastille, Déclaration des droits de l'Homme, fin de l'Ancien Régime."},
+  {"id":"napoleon","title":"Napoléon & le Code Civil","year":1804,"yearEnd":1815,"lat":48.8,"lng":2.3,"cat":"po","region":"Paris","desc":"Le Code Civil exporté dans 40 pays, encore en vigueur. Battu à Waterloo en 1815."}
+]

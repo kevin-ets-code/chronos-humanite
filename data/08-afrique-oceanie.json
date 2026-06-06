@@ -1,0 +1,6 @@
+[
+  {"id":"polynesie","title":"Navigation Polynésienne","year":-1500,"yearEnd":1200,"lat":-17.0,"lng":-149.0,"cat":"ex","region":"Pacifique","desc":"Peuplent les îles du Pacifique sur 10 000 km en pirogues doubles."},
+  {"id":"mali","title":"Empire du Mali — Mansa Moussa","year":1280,"yearEnd":1337,"lat":12.6,"lng":-8.0,"cat":"em","region":"Afrique de l'Ouest","desc":"Mansa Moussa : homme le plus riche de toute l'histoire (400 milliards $)."},
+  {"id":"timbuktu","title":"Tombouctou — Cité du Savoir","year":1300,"yearEnd":1600,"lat":16.7,"lng":-3.0,"cat":"ar","region":"Mali","desc":"25 000 étudiants, 700 000 manuscrits en arabe et langues africaines."},
+  {"id":"zimbabwe","title":"Grand Zimbabwe — Empire Shona","year":1100,"yearEnd":1450,"lat":-20.3,"lng":30.9,"cat":"em","region":"Zimbabwe","desc":"Murs de pierre sèche de 10m. Centre commercial reliant l'Afrique à l'Inde."}
+]

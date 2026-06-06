@@ -1,0 +1,6 @@
+[
+  {"id":"indus","title":"Civilisation de l'Indus","year":-2600,"yearEnd":-1900,"lat":27.0,"lng":68.0,"cat":"em","region":"Pakistan / Inde","desc":"Harappa et Mohenjo-Daro : villes planifiées avec égouts couverts et bains publics."},
+  {"id":"confucius","title":"Confucius","year":-551,"yearEnd":-479,"lat":35.6,"lng":116.9,"cat":"ph","region":"Chine","desc":"Philosophie basée sur les rites, la piété filiale et la méritocratie."},
+  {"id":"bouddha","title":"Siddhartha Gautama — Le Bouddha","year":-563,"yearEnd":-483,"lat":27.5,"lng":83.4,"cat":"re","region":"Inde / Népal","desc":"Prince népalais, Siddhartha atteint l'Éveil. 500 millions de fidèles aujourd'hui."},
+  {"id":"qin","title":"Unification de la Chine — Qin","year":-221,"yearEnd":-206,"lat":34.3,"lng":108.9,"cat":"em","region":"Chine","desc":"Premier Empereur unifie les sept royaumes. Standardise écriture, poids, mesures."}
+]

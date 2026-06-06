@@ -1,0 +1,8 @@
+[
+  {"id":"machine-vapeur","title":"Machine à Vapeur de Watt","year":1769,"yearEnd":1800,"lat":55.8,"lng":-4.2,"cat":"te","region":"Glasgow","desc":"Multiplie l'efficacité par 4. Propulse la révolution industrielle."},
+  {"id":"darwin","title":"Darwin — L'Origine des Espèces","year":1859,"yearEnd":1870,"lat":51.5,"lng":-0.1,"cat":"sc","region":"Londres","desc":"La sélection naturelle explique la diversité du vivant sans créateur."},
+  {"id":"marx","title":"Marx & Engels — Le Capital","year":1848,"yearEnd":1867,"lat":51.5,"lng":-0.1,"cat":"ph","region":"Londres","desc":"Analyse le capitalisme. Inspire révolutions russe, chinoise, cubaine."},
+  {"id":"pasteur","title":"Pasteur — Révolution Microbiologique","year":1857,"yearEnd":1885,"lat":48.8,"lng":2.3,"cat":"sc","region":"Paris","desc":"Prouve que les maladies viennent de micro-organismes. Invente la pasteurisation."},
+  {"id":"edison","title":"Edison — Électricité","year":1879,"yearEnd":1882,"lat":40.7,"lng":-74.2,"cat":"te","region":"New York","desc":"Invente tout le système électrique : centrale, lignes, compteurs, prises."},
+  {"id":"wright","title":"Wright — Premier Vol Motorisé","year":1903,"yearEnd":1904,"lat":36.0,"lng":-75.7,"cat":"te","region":"Kitty Hawk","desc":"12 secondes, 37 mètres. 66 ans plus tard : la Lune."}
+]

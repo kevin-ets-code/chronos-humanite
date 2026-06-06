@@ -1,0 +1,8 @@
+[
+  {"id":"democratie","title":"Naissance de la Démocratie","year":-508,"yearEnd":-322,"lat":37.9,"lng":23.7,"cat":"po","region":"Athènes","desc":"Clisthène institue la démocratie directe à Athènes. Le pouvoir vient du bas."},
+  {"id":"socrate","title":"Socrate","year":-469,"yearEnd":-399,"lat":37.9,"lng":23.7,"cat":"ph","region":"Athènes","desc":"Je sais que je ne sais rien. Condamné à mort, choisit la ciguë plutôt que l'exil."},
+  {"id":"alexandre","title":"Alexandre le Grand","year":-336,"yearEnd":-323,"lat":40.6,"lng":22.9,"cat":"em","region":"Macédoine","desc":"En 13 ans, conquiert 5 millions de km² sans jamais perdre une bataille."},
+  {"id":"rome-republique","title":"République Romaine","year":-509,"yearEnd":-27,"lat":41.9,"lng":12.5,"cat":"po","region":"Rome","desc":"Checks and balances qui inspirera les Pères Fondateurs américains."},
+  {"id":"jesus","title":"Jésus de Nazareth","year":-4,"yearEnd":33,"lat":31.7,"lng":35.2,"cat":"re","region":"Judée","desc":"2,4 milliards de fidèles — la religion la plus répandue sur Terre."},
+  {"id":"chute-rome","title":"Chute de l'Empire Romain","year":476,"yearEnd":480,"lat":44.4,"lng":12.2,"cat":"em","region":"Ravenne","desc":"Fin de l'Antiquité en Europe occidentale. Byzance survit encore 977 ans."}
+]

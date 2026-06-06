@@ -1,0 +1,12 @@
+[
+  { "id": "aube-humanite",     "label": "Aube de l'Humanité",   "startYear": -300000, "endYear": -10000 },
+  { "id": "neolithique",       "label": "Néolithique",          "startYear": -10000,  "endYear": -3500  },
+  { "id": "antiquite",         "label": "Antiquité",            "startYear": -3500,   "endYear": -500   },
+  { "id": "periode-classique", "label": "Période Classique",    "startYear": -500,    "endYear": 500    },
+  { "id": "haut-moyen-age",    "label": "Haut Moyen Âge",       "startYear": 500,     "endYear": 1000   },
+  { "id": "moyen-age",         "label": "Moyen Âge",            "startYear": 1000,    "endYear": 1400   },
+  { "id": "renaissance",       "label": "Renaissance",          "startYear": 1400,    "endYear": 1600   },
+  { "id": "ere-moderne",       "label": "Ère Moderne",          "startYear": 1600,    "endYear": 1800   },
+  { "id": "ere-contemporaine", "label": "Ère Contemporaine",    "startYear": 1800,    "endYear": 1945   },
+  { "id": "monde-actuel",      "label": "Monde Actuel",         "startYear": 1945,    "endYear": 2100   }
+]
