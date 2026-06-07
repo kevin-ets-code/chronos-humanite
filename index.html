@@ -85,6 +85,21 @@
       -webkit-backdrop-filter: blur(14px);
       border-top: 1px solid rgba(201, 168, 76, 0.12);
     }
+    #timeline::before {
+      content: '';
+      position: absolute;
+      top: -50px;
+      left: 0;
+      width: 100%;
+      height: 50px;
+      background: linear-gradient(to top,
+        rgba(201,168,76,0.1) 0%,
+        rgba(201,168,76,0.05) 40%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 0;
+    }
 
     #tl-wrapper {
       position: relative;
@@ -94,7 +109,7 @@
     #tl-year {
       position: absolute;
       top: 4px;
-      left: 0;
+      left: 50%;
       transform: translateX(-50%);
       font-family: 'Playfair Display', serif;
       font-size: clamp(1rem, 2.5vw, 1.45rem);
@@ -105,63 +120,40 @@
       user-select: none;
     }
 
-    #tl-slider {
-      -webkit-appearance: none;
-      appearance: none;
-      display: block;
+    #tl-track {
+      position: relative;
       width: 100%;
-      height: 2px;
-      border-radius: 1px;
-      outline: none;
+      height: 20px;
       cursor: pointer;
-      /* background gradient updated dynamically for gold fill */
     }
-    #tl-slider::-webkit-slider-runnable-track {
+    #tl-track::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
       height: 2px;
+      background: rgba(245,240,232,0.18);
       border-radius: 1px;
-      background: transparent; /* parent gradient shows through */
     }
-    #tl-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 18px; height: 18px;
-      margin-top: -8px; /* center 18px thumb on 2px track */
+    #tl-thumb {
+      position: absolute;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       background: var(--gold);
-      cursor: pointer;
-      box-shadow:
-        0 0 0 2px rgba(13, 12, 10, 0.85),
-        0 0 10px rgba(201, 168, 76, 0.7),
-        0 0 26px rgba(201, 168, 76, 0.35);
-      transition: box-shadow .2s ease;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      cursor: grab;
+      z-index: 2;
+      box-shadow: 0 0 0 2px rgba(13,12,10,0.85), 0 0 10px rgba(201,168,76,0.7), 0 0 26px rgba(201,168,76,0.35);
+      transition: box-shadow 0.2s ease;
+      touch-action: none;
     }
-    #tl-slider:hover::-webkit-slider-thumb,
-    #tl-slider:active::-webkit-slider-thumb {
-      box-shadow:
-        0 0 0 2px rgba(13, 12, 10, 0.85),
-        0 0 16px rgba(201, 168, 76, 0.92),
-        0 0 40px rgba(201, 168, 76, 0.5);
-    }
-
-    #tl-slider::-moz-range-track {
-      height: 2px;
-      border-radius: 1px;
-      background: rgba(245, 240, 232, 0.18);
-      cursor: pointer;
-    }
-    #tl-slider::-moz-range-progress {
-      height: 2px;
-      border-radius: 1px;
-      background: var(--gold);
-    }
-    #tl-slider::-moz-range-thumb {
-      width: 18px; height: 18px;
-      border-radius: 50%;
-      background: var(--gold);
-      border: none;
-      cursor: pointer;
-      box-shadow:
-        0 0 10px rgba(201, 168, 76, 0.7),
-        0 0 26px rgba(201, 168, 76, 0.35);
+    #tl-thumb:hover {
+      box-shadow: 0 0 0 2px rgba(13,12,10,0.85), 0 0 16px rgba(201,168,76,0.92), 0 0 40px rgba(201,168,76,0.5);
+      cursor: grabbing;
     }
 
     #tl-era {
@@ -225,7 +217,7 @@
       margin-top: 6px;
       padding-left: 10px;
       font-family: 'DM Mono', monospace;
-      font-size: 0.48rem;
+      font-size: 0.5rem;
       letter-spacing: .22em;
       text-transform: uppercase;
       color: var(--gold);
@@ -446,7 +438,7 @@
     }
     #panel-region-text {
       font-family: 'DM Mono', monospace;
-      font-size: 0.58rem;
+      font-size: 0.875rem;
       letter-spacing: 0.15em;
       text-transform: uppercase;
       color: rgba(245,240,232,0.35);
@@ -463,7 +455,7 @@
     }
     #panel-desc {
       font-family: 'Cormorant Garamond', Georgia, serif;
-      font-size: 1.05rem;
+      font-size: 1.25rem;
       line-height: 1.85;
       color: rgba(245,240,232,0.65);
       font-style: italic;
@@ -623,7 +615,7 @@
     }
     .fbt {
       font-family: 'DM Mono', monospace;
-      font-size: 0.58rem;
+      font-size: 0.875rem;
       letter-spacing: 0.15em;
       text-transform: uppercase;
       padding: 0.38rem 0.9rem;
@@ -671,15 +663,58 @@
       color: var(--gold);
       text-align: center;
     }
+    #border-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(201,168,76,0.7) 20%, rgba(201,168,76,0.9) 50%, rgba(201,168,76,0.7) 80%, transparent);
+      border-radius: 1px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #border-left-glow {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 50px;
+      height: 100%;
+      background: linear-gradient(to right,
+        rgba(201,168,76,0.12) 0%,
+        rgba(201,168,76,0.06) 30%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 200;
+    }
+    #border-top-glow {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 50px;
+      background: linear-gradient(to bottom,
+        rgba(201,168,76,0.12) 0%,
+        rgba(201,168,76,0.06) 30%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 9;
+    }
   </style>
 </head>
 <body>
+
+  <div id="border-left-glow"></div>
+  <div id="border-top-glow"></div>
+  <div id="border-bottom"></div>
 
   <div id="intro-screen">
     <div id="intro-content">
       <div id="intro-label">Une odyssée à travers le temps</div>
       <h1 id="intro-title">CHRONOS<br><span>Humanité</span></h1>
-      <div id="intro-sub">~300 000 ans d'histoire · 63 événements · 13 ères</div>
+      <div id="intro-sub">~300 000 ans d'histoire</div>
       <div id="intro-line"></div>
       <div id="intro-hint">Glissez le curseur pour voyager dans le temps</div>
     </div>
@@ -1044,7 +1079,9 @@
   <div id="timeline">
     <div id="tl-wrapper">
       <div id="tl-year">300&#8239;000 av. J.-C.</div>
-      <input type="range" id="tl-slider" min="0" max="1000" value="0" />
+      <div id="tl-track">
+        <div id="tl-thumb"></div>
+      </div>
     </div>
     <div id="tl-era">Préhistoire</div>
   </div>
@@ -1054,13 +1091,10 @@
      IIFE isolé — aucun couplage avec le code globe ci-dessus.
   ─────────────────────────────────────────────────────────── */
   (function () {
-    const slider = document.getElementById('tl-slider');
+    const track  = document.getElementById('tl-track');
+    const thumb  = document.getElementById('tl-thumb');
     const yearEl = document.getElementById('tl-year');
     const eraEl  = document.getElementById('tl-era');
-
-    const GOLD  = '#c9a84c';
-    const EMPTY = 'rgba(245, 240, 232, 0.18)';
-    const THUMB = 9; // rayon du thumb (18px / 2)
 
     const CURRENT_YEAR = new Date().getFullYear();
 
@@ -1133,45 +1167,101 @@
       return NL_BP[NL_BP.length - 1].i;
     }
 
-    function placeLabel(v) {
-      const ratio  = v / 1000;
-      const trackW = slider.offsetWidth;
-      // Centre exact du thumb en px
-      const rawPx  = ratio * (trackW - 2 * THUMB) + THUMB;
-      // Clamp pour éviter le débordement du label aux extrémités
-      const halfLbl = yearEl.offsetWidth / 2;
-      yearEl.style.left = Math.max(halfLbl, Math.min(trackW - halfLbl, rawPx)) + 'px';
+    let centerVal   = parseInt(localStorage.getItem('tl-slider-center')) || 500;
+    let windowZones = null;
+
+    localStorage.removeItem('tl-slider-left');
+    localStorage.removeItem('tl-slider-right');
+    localStorage.removeItem('tl-duration-index');
+
+    /* Cherche la zone de fenêtre temporelle correspondant à l'année donnée */
+    function getHalfWindow(year) {
+      if (windowZones) {
+        for (const zone of windowZones) {
+          if (year >= zone.yStart && year <= zone.yEnd) return zone.halfWindow;
+        }
+      }
+      return 50;
     }
 
-    function update() {
-      const v    = +slider.value;
-      const year = sliderToYear(v);
-      const pct  = (v / 1000) * 100;
+    function updateRange() {
+      const centerYear = sliderToYear(centerVal);
+      const halfWindow = getHalfWindow(centerYear);
 
-      yearEl.textContent = formatYear(year);
-      eraEl.textContent  = window._eras ? getEra(year) : '';
+      const yearStart = centerYear - halfWindow;
+      const yearEnd   = centerYear + halfWindow;
 
-      // Gradient WebKit : portion gold à gauche, vide à droite
-      slider.style.background =
-        `linear-gradient(to right, ${GOLD} ${pct}%, ${EMPTY} ${pct}%)`;
+      thumb.style.left = (centerVal / 10) + '%';
 
-      placeLabel(v);
+      yearEl.textContent = formatYear(centerYear);
+      eraEl.textContent  = window._eras ? getEra(centerYear) : '';
+
+      window.currentYearStart = yearStart;
+      window.currentYearEnd   = yearEnd;
+      document.dispatchEvent(new Event('rangechange'));
+
+      localStorage.setItem('tl-slider-center', centerVal);
 
       if (window._earthMat) {
-        window._earthMat.uniforms.uNightLights.value = yearToNightLights(year);
+        window._earthMat.uniforms.uNightLights.value = yearToNightLights(centerYear);
       }
-      localStorage.setItem('chronos-slider', slider.value);
     }
 
-    slider.addEventListener('input', update);
-    window.addEventListener('resize', () => placeLabel(+slider.value));
-
-    const saved = localStorage.getItem('chronos-slider');
-    if (saved !== null) {
-      slider.value = saved;
+    /* ── Drag (souris + tactile) ── */
+    function clientXFromEvent(e) {
+      return e.touches ? e.touches[0].clientX : e.clientX;
     }
 
-    update(); // initialisation → restaure la position sauvegardée ou t=0
+    function centerValFromX(clientX) {
+      const rect    = track.getBoundingClientRect();
+      const offsetX = clientX - rect.left;
+      return Math.max(0, Math.min(1000, Math.round((offsetX / rect.width) * 1000)));
+    }
+
+    let draggingThumb = false;
+
+    function startThumbDrag(e) {
+      draggingThumb = true;
+      e.preventDefault();
+    }
+
+    function onThumbDragMove(e) {
+      if (!draggingThumb) return;
+      centerVal = centerValFromX(clientXFromEvent(e));
+      updateRange();
+    }
+
+    function endThumbDrag() {
+      draggingThumb = false;
+    }
+
+    thumb.addEventListener('mousedown', startThumbDrag);
+    window.addEventListener('mousemove', onThumbDragMove);
+    window.addEventListener('mouseup', endThumbDrag);
+
+    thumb.addEventListener('touchstart', startThumbDrag, { passive: false });
+    window.addEventListener('touchmove', onThumbDragMove, { passive: false });
+    window.addEventListener('touchend', endThumbDrag);
+
+    /* Clic direct sur la piste (hors thumb) : repositionne immédiatement */
+    function onTrackClick(e) {
+      if (e.target === thumb) return;
+      centerVal = centerValFromX(clientXFromEvent(e));
+      updateRange();
+    }
+
+    track.addEventListener('mousedown', onTrackClick);
+    track.addEventListener('touchstart', onTrackClick, { passive: true });
+
+    // _eras n'est disponible qu'une fois loadData() terminé — rafraîchir le label d'ère
+    document.addEventListener('dataLoaded', updateRange);
+
+    fetch('./data/timeline-config.json')
+      .then(r => r.json())
+      .then(config => {
+        windowZones = config.windowZones;
+        updateRange();
+      });
   })();
   </script>
 
@@ -1288,8 +1378,7 @@
       ]);
       window._categories = categories;
       window._eras = erasData;
-      const sliderEl = document.getElementById('tl-slider');
-      if (sliderEl) sliderEl.dispatchEvent(new Event('input'));
+      document.dispatchEvent(new Event('dataLoaded'));
       return { categories, events: eventsData.flat() };
     }
 
@@ -1331,10 +1420,11 @@
       return t * t * (3 - 2 * t);
     }
 
-    function getOpacity(ev, year) {
-      const fade    = ev.year < 0 ? 200 : 50;
-      const fadeIn  = smoothstep(ev.year - fade, ev.year, year);
-      const fadeOut = 1 - smoothstep(ev.yearEnd, ev.yearEnd + fade, year);
+    function getOpacity(ev, yearStart, yearEnd) {
+      const fade  = ev.year < 0 ? 200 : 50;
+      const evEnd = ev.yearEnd ?? ev.year;
+      const fadeIn  = smoothstep(ev.year - fade, ev.year, yearEnd);
+      const fadeOut = 1 - smoothstep(evEnd, evEnd + fade, yearStart);
       return Math.min(fadeIn, fadeOut);
     }
 
@@ -1395,7 +1485,8 @@
     let allEvents   = [];
     let sprites     = [];
     let hitzones    = [];
-    let currentYear = -300000;
+    let currentYearStart = -300000;
+    let currentYearEnd   = -300000;
     let hoveredIdx  = -1;
     let activeFilter = 'all';
 
@@ -1441,7 +1532,7 @@
 
     function applyMouseOut() {
       if (hoveredIdx >= 0) {
-        const op = getOpacity(allEvents[hoveredIdx], currentYear);
+        const op = getOpacity(allEvents[hoveredIdx], currentYearStart, currentYearEnd);
         if (op <= 0.01) {
           sprites[hoveredIdx].visible = false;
         } else {
@@ -1556,7 +1647,7 @@
       if (window.selectedEvent && activeFilter !== 'all' && window.selectedEvent.cat !== activeFilter) {
         if (window._closePanel) window._closePanel();
       }
-      updateVisibility(currentYear);
+      updateVisibility(currentYearStart, currentYearEnd);
     }
 
     function buildFilters(categories) {
@@ -1607,7 +1698,7 @@
       allBtn.style.background = 'rgba(201,168,76,0.08)';
     }
 
-    function updateVisibility(year) {
+    function updateVisibility(yearStart, yearEnd) {
       allEvents.forEach((ev, i) => {
         if (i === hoveredIdx) return;
         if (sprites[i]._filtered) {
@@ -1616,7 +1707,7 @@
         // opacité non-filtrée gérée par animLoop (interpolation)
       });
 
-      if (hoveredIdx >= 0 && getOpacity(allEvents[hoveredIdx], year) <= 0.01) {
+      if (hoveredIdx >= 0 && getOpacity(allEvents[hoveredIdx], yearStart, yearEnd) <= 0.01) {
         applyMouseOut();
       }
     }
@@ -1633,7 +1724,7 @@
       sprites.forEach((sprite, i) => {
         // Interpolation douce de l'opacité vers la cible
         if (i !== hoveredIdx && !sprite._filtered) {
-          const target = getOpacity(allEvents[i], currentYear);
+          const target = getOpacity(allEvents[i], currentYearStart, currentYearEnd);
           const next   = sprite.material.opacity + (target - sprite.material.opacity) * 0.08;
           sprite.material.opacity = next;
           sprite.visible = next > 0.01;
@@ -1678,13 +1769,14 @@
 
       buildSprites(allEvents);
 
-      const slider = document.getElementById('tl-slider');
-      currentYear  = sliderToYear(+slider.value);
-      updateVisibility(currentYear);
+      currentYearStart = window.currentYearStart;
+      currentYearEnd   = window.currentYearEnd;
+      updateVisibility(currentYearStart, currentYearEnd);
 
-      slider.addEventListener('input', () => {
-        currentYear = sliderToYear(+slider.value);
-        updateVisibility(currentYear);
+      document.addEventListener('rangechange', () => {
+        currentYearStart = window.currentYearStart;
+        currentYearEnd   = window.currentYearEnd;
+        updateVisibility(currentYearStart, currentYearEnd);
       });
 
       animLoop();

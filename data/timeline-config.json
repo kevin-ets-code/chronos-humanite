@@ -1,0 +1,9 @@
+{
+  "windowZones": [
+    { "yStart": -300000, "yEnd": -10000, "halfWindow": 5000 },
+    { "yStart": -10000,  "yEnd": -1000,  "halfWindow": 500  },
+    { "yStart": -1000,   "yEnd": 1000,   "halfWindow": 100  },
+    { "yStart": 1000,    "yEnd": 1800,   "halfWindow": 50   },
+    { "yStart": 1800,    "yEnd": 2100,   "halfWindow": 10   }
+  ]
+}

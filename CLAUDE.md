@@ -27,7 +27,9 @@ There is no build step, bundler, linter, or test suite — everything runs direc
 
 - `index.html` — the entire app: HTML, CSS (`<style>`), and all JS (`<script>` blocks). ~1800 lines.
 - `data/*.json` — event data, split by historical era (`01-prehistoire.json` … `13-xxie.json`), plus `categories.json` and `eras.json`.
+- `data/timeline-config.json` — fenêtre temporelle par zone historique (`windowZones`, chacune avec un `halfWindow` qui définit la largeur de la fenêtre visible autour de l'année centrale).
 - `textures/` — Earth day/night/clouds JPGs (loaded by Three.js).
+- `#border-left`, `#border-top`, `#border-bottom` — fines lignes dorées translucides sur les bords de la fenêtre (identiques visuellement au `::before` de `#side-panel`); `#border-left-glow`, `#border-top-glow` — glows dorés associés, en dégradé depuis le bord. Le conteneur `#timeline` a un `::before` qui projette un glow doré vers le haut, en direction du globe.
 
 ## Architecture: the five script blocks in index.html
 
@@ -35,7 +37,7 @@ The page wires together five separate IIFEs (in source order), each owning one c
 
 1. **Globe renderer** (~`L702-974`): sets up the Three.js renderer/scene/camera, loads the day/night/clouds textures, builds the Earth mesh with a custom GLSL day/night shader (`earthMat`), the cloud layer, atmospheric halo (two shader spheres), procedural starfield, and the render/rotation loop (`(function loop() {...})`).
 2. **Sun control** (~`L1019-1041`): drag handle UI (`#sun-control` / `#sun-handle`) that recomputes `SUN_DIR` and writes it to `earthMat.uniforms.uSun`; also tracks `window._userPausedRotation`.
-3. **Timeline slider** (~`L1052-1176`): drives `#tl-slider`, converts slider position to a year via breakpoints (`BP` / `sliderToYear`), updates the displayed year/era label, and pushes `uNightLights` into `earthMat`.
+3. **Timeline slider** (~`L1052-1176`): drives a single draggable thumb (`centerVal`, range 0-1000) on `#tl-slider`, converts slider position to a year via breakpoints (`BP` / `sliderToYear`), updates the displayed year/era label, and pushes `uNightLights` into `earthMat`. The visible time window around the centered year is data-driven: `getHalfWindow(year)` looks up the matching zone in `data/timeline-config.json` (`windowZones`, each with a `halfWindow`) and returns its half-width; `window.currentYearStart`/`window.currentYearEnd` are then computed as `centerYear ± halfWindow` and read by the sprites block to drive event visibility. Only `'tl-slider-center'` is persisted to `localStorage` (the older `'tl-slider-left'`, `'tl-slider-right'`, and `'tl-duration-index'` keys have been removed and are actively cleared on load).
 4. **Sprites + hover + filters** (~`L1246-1708`): the largest block. Loads all JSON data (`loadData`/`ERA_FILES`), builds one `THREE.Sprite` per event placed via `latLngToVec3`, fades sprite opacity in/out based on the current year (`getOpacity`/`smoothstep`), handles hover tooltips and HTML hit-zones overlaid on the canvas (`#sprite-overlay`), spreads overlapping events with `applyClusterOffsets`, and builds the category filter chips (`#filters-list`).
 5. **Side panel** (~`L1735-1804`): opens `#side-panel` with an event's details (`openPanel`/`closePanel`) when a sprite is selected.
 
