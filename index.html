@@ -663,6 +663,58 @@
       color: var(--gold);
       text-align: center;
     }
+
+    /* ── Réglages visuels (atmosphère / nuages / rotation) ───── */
+    #visual-settings {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+    .vs-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+    }
+    .vs-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: rgba(245,240,232,0.35);
+    }
+    .vs-track {
+      position: relative;
+      width: 80px;
+      height: 2px;
+      background: rgba(245,240,232,0.18);
+      border-radius: 1px;
+      cursor: pointer;
+    }
+    .vs-fill {
+      position: absolute;
+      left: 0;
+      height: 2px;
+      background: var(--gold);
+      border-radius: 1px;
+      pointer-events: none;
+    }
+    .vs-thumb {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--gold);
+      top: 50%;
+      transform: translate(-50%, -50%);
+      cursor: grab;
+      box-shadow: 0 0 0 2px rgba(13,12,10,0.85), 0 0 6px rgba(201,168,76,0.6);
+      touch-action: none;
+    }
+    .vs-thumb:hover {
+      box-shadow: 0 0 0 2px rgba(13,12,10,0.85), 0 0 10px rgba(201,168,76,0.9);
+    }
     #border-bottom {
       position: fixed;
       bottom: 0;
@@ -739,6 +791,27 @@
      Globe Chronos — Three.js r128
   ══════════════════════════════════════════════════════════ */
 
+  // ── Persistance d'état (localStorage + URL query string) ──
+  window._state = {
+    getParams() {
+      return new URLSearchParams(window.location.search);
+    },
+    syncURL(params) {
+      const url = new URL(window.location);
+      Object.entries(params).forEach(([k, v]) => {
+        if (v === null || v === undefined) url.searchParams.delete(k);
+        else url.searchParams.set(k, v);
+      });
+      history.replaceState(null, '', url);
+    },
+    saveLocal(key, value) {
+      localStorage.setItem(key, value);
+    },
+    getLocal(key) {
+      return localStorage.getItem(key);
+    }
+  };
+
   const loadingEl = document.getElementById('loading');
   const fillEl    = document.getElementById('fill');
 
@@ -779,9 +852,16 @@
   const dayTex    = loader.load('./textures/earth_daymap.jpg');
   const nightTex  = loader.load('./textures/earth_nightmap.jpg');
   const cloudsTex = loader.load('./textures/earth_clouds.jpg');
+  const normalTex   = loader.load('./textures/earth_normal_map.jpg');
+  const specularTex = loader.load('./textures/earth_specular_map.jpg');
 
   // ── Sun direction (world space, fixed) ────────────────────
   const SUN_DIR = new THREE.Vector3(-1.0, 0.3, 0.5).normalize();
+
+  // ── Réglages visuels (persistés, pilotés par #visual-settings) ─
+  let atmPower    = parseFloat(localStorage.getItem('vs-atm'))    || 14.0;
+  let cloudsSpeed = parseFloat(localStorage.getItem('vs-clouds')) || 0.002;
+  let rotSpeed    = parseFloat(localStorage.getItem('vs-rot'))    || 0.0008;
 
   // ── Earth — day / night shader ────────────────────────────
   // normalW uses mat3(modelMatrix) which is a pure rotation for our sphere
@@ -791,34 +871,74 @@
       uNight:       { value: nightTex },
       uSun:         { value: SUN_DIR  },
       uNightLights: { value: 0.0 },
+      uNormalMap:   { value: normalTex },
+      uSpecularMap: { value: specularTex },
+      uSunColor:    { value: new THREE.Vector3(1.0, 0.95, 0.85) },
     },
     vertexShader: /* glsl */`
       varying vec2 vUv;
       varying vec3 vNormalW;
+      varying vec3 vTangentW;
+      varying vec3 vBitangentW;
+      varying vec3 vViewDir;
 
       void main() {
-        vUv      = uv;
-        vNormalW = normalize(mat3(modelMatrix) * normal);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vUv = uv;
+
+        mat3 mModel  = mat3(modelMatrix);
+        vec3 normalW = normalize(mModel * normal);
+        vNormalW     = normalW;
+
+        // Tangente robuste : évite la dégénérescence près des pôles
+        vec3 up      = abs(normalW.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        vec3 tangent = normalize(cross(up, normalW));
+        vTangentW    = tangent;
+        vBitangentW  = normalize(cross(normalW, tangent));
+
+        vec4 worldPos = modelMatrix * vec4(position, 1.0);
+        vViewDir      = normalize(cameraPosition - worldPos.xyz);
+
+        gl_Position   = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: /* glsl */`
       uniform sampler2D uDay;
       uniform sampler2D uNight;
+      uniform sampler2D uNormalMap;
+      uniform sampler2D uSpecularMap;
       uniform vec3      uSun;
+      uniform vec3      uSunColor;
       uniform float     uNightLights;
 
       varying vec2 vUv;
       varying vec3 vNormalW;
+      varying vec3 vTangentW;
+      varying vec3 vBitangentW;
+      varying vec3 vViewDir;
 
       void main() {
+        // --- Normal map ---
+        vec3 normalSample = texture2D(uNormalMap, vUv).rgb * 2.0 - 1.0;
+        normalSample.xy  *= 0.6; // intensité de l'effet relief (ajustable)
+        mat3 TBN          = mat3(vTangentW, vBitangentW, vNormalW);
+        vec3 N            = normalize(TBN * normalSample);
+
+        // --- Diffuse day/night ---
+        float cosA  = dot(N, uSun);
+        float blend = smoothstep(-0.25, 0.25, cosA);
+
         vec4 day   = texture2D(uDay,   vUv);
         vec4 night = texture2D(uNight, vUv);
 
-        float cosA  = dot(vNormalW, uSun);
-        float blend = smoothstep(-0.25, 0.25, cosA);
+        // --- Specular (ocean glint) ---
+        float specMask = texture2D(uSpecularMap, vUv).r;
+        vec3  halfVec  = normalize(uSun + vViewDir);
+        float spec     = pow(max(dot(N, halfVec), 0.0), 48.0) * specMask * 0.5;
+        vec3  specColor = uSunColor * spec * max(cosA, 0.0);
 
-        gl_FragColor = mix(night * uNightLights, day, blend);
+        // --- Composition ---
+        vec4 base = mix(night * uNightLights, day, blend);
+        gl_FragColor = vec4(base.rgb + specColor, 1.0);
       }
     `,
   });
@@ -831,69 +951,148 @@
   scene.add(earth);
   window._earth = earth;
 
-  // ── Clouds ────────────────────────────────────────────────
-  // Black background of the cloud texture becomes transparent via AdditiveBlending
-  const clouds = new THREE.Mesh(
-    new THREE.SphereGeometry(1.018, 64, 64),
-    new THREE.MeshBasicMaterial({
-      map:         cloudsTex,
-      blending:    THREE.AdditiveBlending,
-      transparent: true,
-      opacity:     0.55,
-      depthWrite:  false,
-    })
-  );
-  scene.add(clouds);
+  // ── Clouds — animated, sun-reactive shader layer ──────────
+  cloudsTex.wrapS = cloudsTex.wrapT = THREE.RepeatWrapping;
 
-  // ── Atmosphere: outer halo (BackSide large sphere) ────────
-  // Classic pow(0.65 - dot(N, viewDir), 4) rim formula
-  scene.add(new THREE.Mesh(
-    new THREE.SphereGeometry(1.18, 64, 32),
-    new THREE.ShaderMaterial({
-      vertexShader: /* glsl */`
-        varying vec3 vN;
-        void main() {
-          vN = normalize(normalMatrix * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: /* glsl */`
-        varying vec3 vN;
-        void main() {
-          float i = pow(0.65 - dot(vN, vec3(0.0, 0.0, 1.0)), 4.0);
-          gl_FragColor = vec4(0.22, 0.52, 1.0, 1.0) * i;
-        }
-      `,
-      side:        THREE.BackSide,
-      blending:    THREE.AdditiveBlending,
-      transparent: true,
-      depthWrite:  false,
-    })
-  ));
+  const cloudsMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uClouds:   { value: cloudsTex },
+      uSun:      { value: new THREE.Vector3(1, 0, 0) },
+      uOpacity:  { value: 0.85 }
+    },
+    vertexShader: /* glsl */`
+      varying vec2 vUv;
+      varying vec3 vNormalW;
+      void main() {
+        vUv = uv;
+        vNormalW = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform sampler2D uClouds;
+      uniform vec3 uSun;
+      uniform float uOpacity;
+      varying vec2 vUv;
+      varying vec3 vNormalW;
+      void main() {
+        float cosA   = dot(normalize(vNormalW), uSun);
+        float light  = smoothstep(-0.1, 0.5, cosA);
+        vec4  cloud  = texture2D(uClouds, vUv);
+        float alpha  = cloud.r * uOpacity * mix(0.3, 1.0, light);
+        gl_FragColor = vec4(vec3(1.0) * mix(0.4, 1.0, light), alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.FrontSide
+  });
 
-  // ── Atmosphere: inner rim glow (FrontSide thin shell) ─────
-  scene.add(new THREE.Mesh(
-    new THREE.SphereGeometry(1.006, 64, 32),
-    new THREE.ShaderMaterial({
-      vertexShader: /* glsl */`
-        varying vec3 vN;
-        void main() {
-          vN = normalize(normalMatrix * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: /* glsl */`
-        varying vec3 vN;
-        void main() {
-          float i = pow(1.0 - dot(vN, vec3(0.0, 0.0, 1.0)), 3.0);
-          gl_FragColor = vec4(0.22, 0.52, 1.0, 0.3) * i;
-        }
-      `,
-      blending:    THREE.AdditiveBlending,
-      transparent: true,
-      depthWrite:  false,
-    })
-  ));
+  const cloudsGeo  = new THREE.SphereGeometry(1.003, 64, 64);
+  const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
+  scene.add(cloudsMesh);
+  window._cloudsMesh = cloudsMesh;
+  window._cloudsMat  = cloudsMat;
+
+  // ── Atmosphere — additive glow halo ───────────────────────
+  const atmosMat = new THREE.ShaderMaterial({
+    uniforms: {
+      atmOpacity:    { value: 0.85 },
+      atmPowFactor:  { value: 4.1 },
+      atmMultiplier: { value: atmPower }
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 eyeVector;
+      void main() {
+        vec4 mvPos  = modelViewMatrix * vec4(position, 1.0);
+        vNormal     = normalize(normalMatrix * normal);
+        eyeVector   = normalize(mvPos.xyz);
+        gl_Position = projectionMatrix * mvPos;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vNormal;
+      varying vec3 eyeVector;
+      uniform float atmOpacity;
+      uniform float atmPowFactor;
+      uniform float atmMultiplier;
+      void main() {
+        float dotP    = dot(vNormal, eyeVector);
+        float factor  = pow(dotP, atmPowFactor) * atmMultiplier;
+        vec3 atmColor = vec3(0.35 + dotP/4.5, 0.35 + dotP/4.5, 1.0);
+        gl_FragColor  = vec4(atmColor, atmOpacity) * factor;
+      }
+    `,
+    blending:    THREE.AdditiveBlending,
+    side:        THREE.BackSide,
+    transparent: true,
+    depthWrite:  false
+  });
+
+  const atmosGeo  = new THREE.SphereGeometry(1.1, 64, 64);
+  const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
+  scene.add(atmosMesh);
+  window._atmosphereMat = atmosMat;
+
+  // ── Sliders de réglages visuels (#visual-settings) ────────
+  function makeVsSlider(trackId, thumbId, fillId, min, max, initial, storageKey, onUpdate) {
+    const track = document.getElementById(trackId);
+    const thumb = document.getElementById(thumbId);
+    const fill  = document.getElementById(fillId);
+
+    let vsDragging = false;
+
+    function render(val) {
+      const pct = Math.max(0, Math.min(1, (val - min) / (max - min)));
+      const w = track.clientWidth;
+      thumb.style.left = (pct * w) + 'px';
+      fill.style.width = (pct * w) + 'px';
+    }
+
+    function update(e) {
+      const c   = e.touches ? e.touches[0] : e;
+      const r   = track.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (c.clientX - r.left) / r.width));
+      const newVal = min + pct * (max - min);
+      thumb.style.left = (pct * r.width) + 'px';
+      fill.style.width = (pct * r.width) + 'px';
+      localStorage.setItem(storageKey, newVal);
+      onUpdate(newVal);
+    }
+
+    render(initial);
+
+    thumb.addEventListener('mousedown', e => { vsDragging = true; e.preventDefault(); });
+    window.addEventListener('mousemove', e => { if (vsDragging) update(e); });
+    window.addEventListener('mouseup',   () => { vsDragging = false; });
+
+    thumb.addEventListener('touchstart', () => { vsDragging = true; }, { passive: true });
+    window.addEventListener('touchmove', e => { if (vsDragging) update(e); }, { passive: true });
+    window.addEventListener('touchend',  () => { vsDragging = false; });
+  }
+
+  // Le HTML #visual-settings est plus bas dans le document : on attend
+  // que le DOM soit prêt avant d'aller chercher ses éléments.
+  window.addEventListener('DOMContentLoaded', () => {
+    makeVsSlider('vs-atm-track', 'vs-atm-thumb', 'vs-atm-fill',
+      0.0, 20.0, 9.5, 'vs-atm',
+      (v) => {
+        if (window._atmosphereMat)
+          window._atmosphereMat.uniforms.atmMultiplier.value = v;
+      }
+    );
+
+    makeVsSlider('vs-clouds-track', 'vs-clouds-thumb', 'vs-clouds-fill',
+      0.0005, 0.005, cloudsSpeed, 'vs-clouds',
+      (v) => { cloudsSpeed = v; }
+    );
+
+    makeVsSlider('vs-rot-track', 'vs-rot-thumb', 'vs-rot-fill',
+      0.0002, 0.002, rotSpeed, 'vs-rot',
+      (v) => { rotSpeed = v; }
+    );
+  });
 
   // ── Starfield ─────────────────────────────────────────────
   const STAR_COUNT = 4500;
@@ -943,10 +1142,10 @@
     const dy = e.clientY - prev.y;
     vel.x = dy * 0.004;
     vel.y = dx * 0.004;
-    earth.rotation.x  += vel.x;
-    earth.rotation.y  += vel.y;
-    clouds.rotation.x += vel.x;
-    clouds.rotation.y += vel.y;
+    earth.rotation.x      += vel.x;
+    earth.rotation.y      += vel.y;
+    cloudsMesh.rotation.x += vel.x;
+    cloudsMesh.rotation.y += vel.y;
     prev = { x: e.clientX, y: e.clientY };
   });
 
@@ -968,10 +1167,10 @@
     const dy = t.clientY - prev.y;
     vel.x = dy * 0.004;
     vel.y = dx * 0.004;
-    earth.rotation.x  += vel.x;
-    earth.rotation.y  += vel.y;
-    clouds.rotation.x += vel.x;
-    clouds.rotation.y += vel.y;
+    earth.rotation.x      += vel.x;
+    earth.rotation.y      += vel.y;
+    cloudsMesh.rotation.x += vel.x;
+    cloudsMesh.rotation.y += vel.y;
     prev = { x: t.clientX, y: t.clientY };
   }, { passive: true });
 
@@ -982,20 +1181,23 @@
     requestAnimationFrame(loop);
 
     if (!dragging && !window._hoverPause && !window._userPausedRotation) {
-      // Auto-rotation (clouds slightly faster than earth)
-      earth.rotation.y  += 0.0008;
-      clouds.rotation.y += 0.001;
+      // Auto-rotation (vitesses pilotées par #visual-settings)
+      earth.rotation.y      += rotSpeed;
+      cloudsMesh.rotation.y += cloudsSpeed;
 
       // Post-drag inertia
       if (Math.abs(vel.x) > 0.00005 || Math.abs(vel.y) > 0.00005) {
-        earth.rotation.x  += vel.x;
-        earth.rotation.y  += vel.y;
-        clouds.rotation.x += vel.x;
-        clouds.rotation.y += vel.y;
+        earth.rotation.x      += vel.x;
+        earth.rotation.y      += vel.y;
+        cloudsMesh.rotation.x += vel.x;
+        cloudsMesh.rotation.y += vel.y;
         vel.x *= 0.94;
         vel.y *= 0.94;
       }
     }
+
+    // Synchroniser le soleil des nuages avec celui de la Terre
+    if (window._cloudsMat) window._cloudsMat.uniforms.uSun.value.copy(earthMat.uniforms.uSun.value);
 
     renderer.render(scene, camera);
   })();
@@ -1049,6 +1251,34 @@
       <span id="rotation-icon">⏸</span>
     </button>
     <div id="rotation-label">Rotation de la Terre</div>
+
+    <div id="visual-settings">
+
+      <div class="vs-row">
+        <span class="vs-label">ATMOSPHÈRE</span>
+        <div class="vs-track" id="vs-atm-track">
+          <div class="vs-fill" id="vs-atm-fill"></div>
+          <div class="vs-thumb" id="vs-atm-thumb"></div>
+        </div>
+      </div>
+
+      <div class="vs-row">
+        <span class="vs-label">NUAGES</span>
+        <div class="vs-track" id="vs-clouds-track">
+          <div class="vs-fill" id="vs-clouds-fill"></div>
+          <div class="vs-thumb" id="vs-clouds-thumb"></div>
+        </div>
+      </div>
+
+      <div class="vs-row">
+        <span class="vs-label">ROTATION</span>
+        <div class="vs-track" id="vs-rot-track">
+          <div class="vs-fill" id="vs-rot-fill"></div>
+          <div class="vs-thumb" id="vs-rot-thumb"></div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <script>
@@ -1071,7 +1301,22 @@
       }
 
       window._userPausedRotation = userPausedRotation;
+
+      const paused = window._userPausedRotation ? 1 : 0;
+      window._state.saveLocal('rotation-paused', paused);
+      window._state.syncURL({ paused: paused === 0 ? null : 1 });
     });
+
+    // Restauration de l'état pause persisté (URL > localStorage > défaut)
+    const _pauseParams = window._state.getParams();
+    let initialPaused;
+    if (_pauseParams.has('paused')) {
+      initialPaused = parseInt(_pauseParams.get('paused'), 10) === 1;
+    } else {
+      const storedPaused = window._state.getLocal('rotation-paused');
+      initialPaused = storedPaused !== null && parseInt(storedPaused, 10) === 1;
+    }
+    if (initialPaused) rotationToggle.click();
   })();
   </script>
 
@@ -1121,6 +1366,16 @@
       return BP[BP.length - 1].y;
     }
 
+    function yearToSlider(year) {
+      for (let i = 0; i < BP.length - 1; i++) {
+        if (year >= BP[i].y && year <= BP[i + 1].y) {
+          const a = (year - BP[i].y) / (BP[i + 1].y - BP[i].y);
+          return Math.round((BP[i].t + a * (BP[i + 1].t - BP[i].t)) * 1000);
+        }
+      }
+      return year < BP[0].y ? 0 : 1000;
+    }
+
     function formatYear(y) {
       const n = Math.round(y);
       // Narrow no-break space ( ) comme séparateur de milliers
@@ -1167,7 +1422,14 @@
       return NL_BP[NL_BP.length - 1].i;
     }
 
-    let centerVal   = parseInt(localStorage.getItem('tl-slider-center')) || 500;
+    const _tParam = window._state.getParams().get('t');
+    let centerVal;
+    if (_tParam !== null) {
+      centerVal = Math.max(0, Math.min(1000, yearToSlider(parseFloat(_tParam))));
+    } else {
+      const storedCenter = window._state.getLocal('tl-slider-center');
+      centerVal = storedCenter !== null ? parseInt(storedCenter) : 500;
+    }
     let windowZones = null;
 
     localStorage.removeItem('tl-slider-left');
@@ -1200,7 +1462,8 @@
       window.currentYearEnd   = yearEnd;
       document.dispatchEvent(new Event('rangechange'));
 
-      localStorage.setItem('tl-slider-center', centerVal);
+      window._state.saveLocal('tl-slider-center', centerVal);
+      window._state.syncURL({ t: Math.round(centerYear) });
 
       if (window._earthMat) {
         window._earthMat.uniforms.uNightLights.value = yearToNightLights(centerYear);
@@ -1283,7 +1546,7 @@
     let beta    = 0;     // angle courant [0, π]
     let sunDrag = false;
 
-    function applyBeta(b) {
+    function applyBeta(b, persist) {
       // Normalise dans [0, 2π] pour la rotation complète
       beta = ((b % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
@@ -1297,6 +1560,12 @@
         window._earthMat.uniforms.uSun.value
           .set(Math.sin(beta), 0.3, Math.cos(beta))
           .normalize();
+      }
+
+      if (persist) {
+        const angle = Math.round(beta * 180 / Math.PI);
+        window._state.saveLocal('sun-angle', angle);
+        window._state.syncURL({ sun: angle });
       }
     }
 
@@ -1312,24 +1581,35 @@
     // Clic/drag sur n'importe quelle partie du contrôle
     control.addEventListener('mousedown', e => {
       sunDrag = true;
-      applyBeta(betaFromEvent(e));
+      applyBeta(betaFromEvent(e), true);
       e.preventDefault(); // évite la sélection de texte pendant le drag
     });
     window.addEventListener('mousemove', e => {
-      if (sunDrag) applyBeta(betaFromEvent(e));
+      if (sunDrag) applyBeta(betaFromEvent(e), true);
     });
     window.addEventListener('mouseup', () => { sunDrag = false; });
 
     control.addEventListener('touchstart', e => {
       sunDrag = true;
-      applyBeta(betaFromEvent(e));
+      applyBeta(betaFromEvent(e), true);
     }, { passive: true });
     window.addEventListener('touchmove', e => {
-      if (sunDrag) applyBeta(betaFromEvent(e));
+      if (sunDrag) applyBeta(betaFromEvent(e), true);
     }, { passive: true });
     window.addEventListener('touchend', () => { sunDrag = false; });
 
-    applyBeta(0); // position initiale : soleil en haut
+    // Restauration de l'angle persisté (URL > localStorage > défaut)
+    const _sunParams = window._state.getParams();
+    let initialAngleDeg = null;
+    if (_sunParams.has('sun')) {
+      initialAngleDeg = parseFloat(_sunParams.get('sun'));
+    } else {
+      const storedAngle = window._state.getLocal('sun-angle');
+      if (storedAngle !== null) initialAngleDeg = parseFloat(storedAngle);
+    }
+    applyBeta(initialAngleDeg !== null && !isNaN(initialAngleDeg)
+      ? initialAngleDeg * Math.PI / 180
+      : 0, true); // position initiale : soleil en haut (par défaut) — persiste pour rester cohérent avec timeline/paused/filters
   })();
   </script>
 
@@ -1690,12 +1970,41 @@
           }
           activeFilter = btn.dataset.cat;
           applyFilter();
+
+          const allCats    = categories.map(c => c.id);
+          const activeCats = activeFilter === 'all' ? [] : [activeFilter];
+          const isAll      = activeCats.length === 0 || activeCats.length === allCats.length;
+          window._state.saveLocal('active-filters', JSON.stringify(activeCats));
+          window._state.syncURL({ filters: isAll ? null : activeCats.join(',') });
         });
       });
 
       allBtn.style.color = '#c9a84c';
       allBtn.style.borderColor = 'rgba(201,168,76,0.5)';
       allBtn.style.background = 'rgba(201,168,76,0.08)';
+    }
+
+    // Restauration des filtres persistés (URL > localStorage > défaut "Tout")
+    // Doit s'exécuter après buildSprites() : applyFilter() lit le tableau `sprites`.
+    function restoreFilters() {
+      const list = document.getElementById('filters-list');
+      if (!list) return;
+
+      const _filterParams = window._state.getParams();
+      let restoredCats = null;
+      if (_filterParams.has('filters')) {
+        restoredCats = _filterParams.get('filters').split(',').filter(Boolean);
+      } else {
+        const storedFilters = window._state.getLocal('active-filters');
+        if (storedFilters !== null) {
+          try { restoredCats = JSON.parse(storedFilters); } catch (e) { restoredCats = null; }
+        }
+      }
+      if (Array.isArray(restoredCats) && restoredCats.length === 1) {
+        const targetBtn = Array.from(list.querySelectorAll('.fbt'))
+          .find(b => b.dataset.cat === restoredCats[0]);
+        if (targetBtn) targetBtn.click();
+      }
     }
 
     function updateVisibility(yearStart, yearEnd) {
@@ -1768,6 +2077,7 @@
       }
 
       buildSprites(allEvents);
+      restoreFilters();
 
       currentYearStart = window.currentYearStart;
       currentYearEnd   = window.currentYearEnd;
