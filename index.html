@@ -274,12 +274,17 @@
     }
     #ev-line {
       width: 1px;
-      height: 50px;
+      height: 30px;
       background: linear-gradient(
         to bottom,
-        rgba(201,168,76,0.8),
+        rgba(201,168,76,0.5),
         transparent
       );
+      opacity: 0;
+      transition: opacity 150ms ease;
+    }
+    #ev-tooltip.visible #ev-line {
+      opacity: 1;
     }
     #ev-card {
       background: linear-gradient(
@@ -851,7 +856,6 @@
 
   const dayTex    = loader.load('./textures/earth_daymap.jpg');
   const nightTex  = loader.load('./textures/earth_nightmap.jpg');
-  const cloudsTex = loader.load('./textures/earth_clouds.jpg');
   const normalTex   = loader.load('./textures/earth_normal_map.jpg');
   const specularTex = loader.load('./textures/earth_specular_map.jpg');
 
@@ -859,9 +863,10 @@
   const SUN_DIR = new THREE.Vector3(-1.0, 0.3, 0.5).normalize();
 
   // ── Réglages visuels (persistés, pilotés par #visual-settings) ─
-  let atmPower    = parseFloat(localStorage.getItem('vs-atm'))    || 14.0;
-  let cloudsSpeed = parseFloat(localStorage.getItem('vs-clouds')) || 0.002;
-  let rotSpeed    = parseFloat(localStorage.getItem('vs-rot'))    || 0.0008;
+  let atmPower      = parseFloat(localStorage.getItem('vs-atm'))           || 14.0;
+  let cloudsSpeed   = parseFloat(localStorage.getItem('vs-clouds'))        || 0.3;
+  let cloudsDensity = parseFloat(localStorage.getItem('vs-cloud-density')) || 0.5;
+  let rotSpeed      = parseFloat(localStorage.getItem('vs-rot'))           || 0.0008;
 
   // ── Earth — day / night shader ────────────────────────────
   // normalW uses mat3(modelMatrix) which is a pure rotation for our sphere
@@ -951,36 +956,115 @@
   scene.add(earth);
   window._earth = earth;
 
-  // ── Clouds — animated, sun-reactive shader layer ──────────
-  cloudsTex.wrapS = cloudsTex.wrapT = THREE.RepeatWrapping;
+  // ── Clouds — procedural fBm shader layer, sun-reactive ────
+  const cloudClock = new THREE.Clock();
 
   const cloudsMat = new THREE.ShaderMaterial({
     uniforms: {
-      uClouds:   { value: cloudsTex },
-      uSun:      { value: new THREE.Vector3(1, 0, 0) },
-      uOpacity:  { value: 0.85 }
+      uSun:           { value: new THREE.Vector3(1, 0, 0) },
+      uOpacity:       { value: 0.85 },
+      uTime:          { value: 0.0 },
+      uCloudDensity:  { value: cloudsDensity }
     },
     vertexShader: /* glsl */`
       varying vec2 vUv;
       varying vec3 vNormalW;
+      varying vec3 vNormalL;
       void main() {
         vUv = uv;
         vNormalW = normalize(mat3(modelMatrix) * normal);
+        vNormalL = normalize(normal);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: /* glsl */`
-      uniform sampler2D uClouds;
-      uniform vec3 uSun;
+      uniform vec3  uSun;
       uniform float uOpacity;
+      uniform float uTime;
+      uniform float uCloudDensity;
       varying vec2 vUv;
       varying vec3 vNormalW;
+      varying vec3 vNormalL;
+
+      vec3 hash3(vec3 p) {
+        p = vec3(dot(p,vec3(127.1,311.7,74.7)),
+                 dot(p,vec3(269.5,183.3,246.1)),
+                 dot(p,vec3(113.5,271.9,124.6)));
+        return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+      }
+      float noise(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        vec3 u = f*f*(3.0-2.0*f);
+        return mix(mix(mix(dot(hash3(i+vec3(0,0,0)),f-vec3(0,0,0)),
+                           dot(hash3(i+vec3(1,0,0)),f-vec3(1,0,0)),u.x),
+                       mix(dot(hash3(i+vec3(0,1,0)),f-vec3(0,1,0)),
+                           dot(hash3(i+vec3(1,1,0)),f-vec3(1,1,0)),u.x),u.y),
+                   mix(mix(dot(hash3(i+vec3(0,0,1)),f-vec3(0,0,1)),
+                           dot(hash3(i+vec3(1,0,1)),f-vec3(1,0,1)),u.x),
+                       mix(dot(hash3(i+vec3(0,1,1)),f-vec3(0,1,1)),
+                           dot(hash3(i+vec3(1,1,1)),f-vec3(1,1,1)),u.x),u.y),u.z);
+      }
+      float fbm(vec3 p) {
+        float v = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 6; i++) {
+          v += a * noise(p);
+          p = p * 2.1 + vec3(1.7,9.2,3.4);
+          a *= 0.5;
+        }
+        return v * 0.5 + 0.5;
+      }
+
       void main() {
-        float cosA   = dot(normalize(vNormalW), uSun);
-        float light  = smoothstep(-0.1, 0.5, cosA);
-        vec4  cloud  = texture2D(uClouds, vUv);
-        float alpha  = cloud.r * uOpacity * mix(0.3, 1.0, light);
-        gl_FragColor = vec4(vec3(1.0) * mix(0.4, 1.0, light), alpha);
+        // Normale locale (objet) : ancre le motif de bruit à la surface de la
+        // sphère pour qu'il tourne rigidement avec le globe plutôt que de
+        // rester plaqué dans l'espace monde/caméra.
+        vec3 n = normalize(vNormalL);
+        // Normale monde : nécessaire pour comparer à uSun (direction monde)
+        // et faire avancer le terminateur jour/nuit avec la rotation du globe.
+        vec3 nw = normalize(vNormalW);
+
+        // Offset temporel multi-axe pour mouvement non-uniforme
+        float t = uTime * 0.04;
+        vec3 p = n * 3.5 + vec3(t * 0.7, t * 0.3, t * 0.5);
+
+        // Premier niveau de warping : offset q dérivé de p
+        vec3 q = vec3(
+          fbm(p + vec3(0.0, 0.0, 0.0)),
+          fbm(p + vec3(5.2, 1.3, 2.8)),
+          fbm(p + vec3(1.7, 9.2, 3.4))
+        );
+
+        // Deuxième niveau : déformation de p par q
+        vec3 r = vec3(
+          fbm(p + 4.0 * q + vec3(1.7, 9.2, 3.4)),
+          fbm(p + 4.0 * q + vec3(8.3, 2.8, 5.1)),
+          fbm(p + 4.0 * q + vec3(4.1, 7.3, 1.9))
+        );
+
+        // fBm final sur l'espace déformé -> filaments et fronts nuageux
+        float density   = fbm(p + 4.0 * r);
+        float threshold = mix(0.65, 0.35, uCloudDensity);
+
+        // Latitude : n.y va de -1 (pôle sud) à +1 (pôle nord)
+        float lat = abs(n.y); // 0 = équateur, 1 = pôles
+
+        // Zones de Hadley : forte couverture tropicale et polaire,
+        // creux subtropical sec entre 0.25 et 0.45
+        float latMask = 1.0
+          - 0.5 * smoothstep(0.2, 0.35, lat) * smoothstep(0.5, 0.35, lat);
+
+        float cloud = smoothstep(threshold, threshold + 0.18, density) * latMask;
+
+        // Zones denses = blanc pur, bords = légèrement gris-bleuté
+        float densityEdge = smoothstep(threshold, threshold + 0.35, density);
+        vec3  cloudColor  = mix(vec3(0.78, 0.82, 0.88), vec3(1.0, 1.0, 1.0), densityEdge);
+
+        float cosA  = dot(nw, uSun);
+        float light = smoothstep(-0.1, 0.5, cosA);
+        float alpha = cloud * uOpacity * mix(0.3, 1.0, light) * 0.88;
+        gl_FragColor = vec4(cloudColor * mix(0.4, 1.0, light), alpha);
       }
     `,
     transparent: true,
@@ -990,7 +1074,7 @@
 
   const cloudsGeo  = new THREE.SphereGeometry(1.003, 64, 64);
   const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
-  scene.add(cloudsMesh);
+  earth.add(cloudsMesh); // enfant de earth → hérite de sa rotation, plus jamais décorrélé
   window._cloudsMesh = cloudsMesh;
   window._cloudsMat  = cloudsMat;
 
@@ -1084,13 +1168,18 @@
     );
 
     makeVsSlider('vs-clouds-track', 'vs-clouds-thumb', 'vs-clouds-fill',
-      0.0005, 0.005, cloudsSpeed, 'vs-clouds',
+      0.0, 1.0, cloudsSpeed, 'vs-clouds',
       (v) => { cloudsSpeed = v; }
     );
 
     makeVsSlider('vs-rot-track', 'vs-rot-thumb', 'vs-rot-fill',
       0.0002, 0.002, rotSpeed, 'vs-rot',
       (v) => { rotSpeed = v; }
+    );
+
+    makeVsSlider('vs-cloud-density-track', 'vs-cloud-density-thumb', 'vs-cloud-density-fill',
+      0.0, 1.0, cloudsDensity, 'vs-cloud-density',
+      (v) => { cloudsDensity = v; cloudsMat.uniforms.uCloudDensity.value = v; }
     );
   });
 
@@ -1144,8 +1233,6 @@
     vel.y = dx * 0.004;
     earth.rotation.x      += vel.x;
     earth.rotation.y      += vel.y;
-    cloudsMesh.rotation.x += vel.x;
-    cloudsMesh.rotation.y += vel.y;
     prev = { x: e.clientX, y: e.clientY };
   });
 
@@ -1169,8 +1256,6 @@
     vel.y = dx * 0.004;
     earth.rotation.x      += vel.x;
     earth.rotation.y      += vel.y;
-    cloudsMesh.rotation.x += vel.x;
-    cloudsMesh.rotation.y += vel.y;
     prev = { x: t.clientX, y: t.clientY };
   }, { passive: true });
 
@@ -1181,16 +1266,13 @@
     requestAnimationFrame(loop);
 
     if (!dragging && !window._hoverPause && !window._userPausedRotation) {
-      // Auto-rotation (vitesses pilotées par #visual-settings)
-      earth.rotation.y      += rotSpeed;
-      cloudsMesh.rotation.y += cloudsSpeed;
+      // Auto-rotation (vitesse pilotée par #visual-settings)
+      earth.rotation.y += rotSpeed;
 
       // Post-drag inertia
       if (Math.abs(vel.x) > 0.00005 || Math.abs(vel.y) > 0.00005) {
         earth.rotation.x      += vel.x;
         earth.rotation.y      += vel.y;
-        cloudsMesh.rotation.x += vel.x;
-        cloudsMesh.rotation.y += vel.y;
         vel.x *= 0.94;
         vel.y *= 0.94;
       }
@@ -1198,6 +1280,9 @@
 
     // Synchroniser le soleil des nuages avec celui de la Terre
     if (window._cloudsMat) window._cloudsMat.uniforms.uSun.value.copy(earthMat.uniforms.uSun.value);
+
+    // Faire évoluer le bruit procédural des nuages dans le temps
+    cloudsMat.uniforms.uTime.value += cloudClock.getDelta() * cloudsSpeed;
 
     renderer.render(scene, camera);
   })();
@@ -1275,6 +1360,14 @@
         <div class="vs-track" id="vs-rot-track">
           <div class="vs-fill" id="vs-rot-fill"></div>
           <div class="vs-thumb" id="vs-rot-thumb"></div>
+        </div>
+      </div>
+
+      <div class="vs-row">
+        <span class="vs-label">DENSITÉ NUAGES</span>
+        <div class="vs-track" id="vs-cloud-density-track">
+          <div class="vs-fill" id="vs-cloud-density-fill"></div>
+          <div class="vs-thumb" id="vs-cloud-density-thumb"></div>
         </div>
       </div>
 
@@ -1679,7 +1772,7 @@
     function latLngToVec3(lat, lng) {
       const phi   = (90 - lat) * Math.PI / 180;
       const theta = (lng + 180) * Math.PI / 180;
-      const R = 1.02;
+      const R = 1.03;
       return new THREE.Vector3(
         -R * Math.sin(phi) * Math.cos(theta),
          R * Math.cos(phi),
@@ -1739,29 +1832,32 @@
       ctx.fillStyle = g2;
       ctx.fillRect(0, 0, 128, 128);
 
-      // 3. Border sombre r=16, lineWidth 3
+      // 3. Border sombre r=32, lineWidth 4
       ctx.beginPath();
-      ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 32, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(0,0,0,0.65)';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.stroke();
 
-      // 4. Cercle colore plein r=14, opacity 0.95
+      // 4. Cercle colore plein r=28, opacity 0.95
       ctx.beginPath();
-      ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 28, 0, Math.PI * 2);
       ctx.fillStyle = hexToRgba(hex, 0.95);
       ctx.fill();
 
-      // 5. Highlight blanc r=4, offset (-4,-4)
+      // 5. Highlight blanc r=8, offset (-8,-8)
       ctx.beginPath();
-      ctx.arc(cx - 4, cy - 4, 4, 0, Math.PI * 2);
+      ctx.arc(cx - 8, cy - 8, 8, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       ctx.fill();
 
-      return new THREE.CanvasTexture(canvas);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      return texture;
     }
 
-    const BASE_SCALE = 0.18;
+    const BASE_SCALE = 0.12;
     let allEvents   = [];
     let sprites     = [];
     let hitzones    = [];
@@ -1804,7 +1900,7 @@
 
     function applyMouseOver(idx) {
       hoveredIdx = idx;
-      sprites[idx].scale.setScalar(BASE_SCALE * 2.2);
+      sprites[idx]._targetScale = BASE_SCALE * 1.6;
       sprites[idx].material.opacity = 1.0;
       window._hoverPause = true;
       showTooltip(allEvents[idx], hitzones[idx]);
@@ -1812,6 +1908,7 @@
 
     function applyMouseOut() {
       if (hoveredIdx >= 0) {
+        sprites[hoveredIdx]._targetScale = BASE_SCALE;
         const op = getOpacity(allEvents[hoveredIdx], currentYearStart, currentYearEnd);
         if (op <= 0.01) {
           sprites[hoveredIdx].visible = false;
@@ -1904,6 +2001,7 @@
         sprite.position.copy(positions[idx]);
         sprite.material.opacity = 0;
         sprite.scale.setScalar(BASE_SCALE);
+        sprite._targetScale = BASE_SCALE;
         sprite.visible = false;
         earth.add(sprite);
         sprites.push(sprite);
@@ -2057,6 +2155,11 @@
             hz.style.display = 'block';
           }
         }
+
+        // Interpolation douce de l'échelle vers la cible (hover/repos)
+        const curS = sprite.scale.x;
+        const tgtS = sprite._targetScale ?? BASE_SCALE;
+        sprite.scale.setScalar(curS + (tgtS - curS) * 0.12);
 
         if (!sprite.visible || i === hoveredIdx) return;
         const s = BASE_SCALE * (1.0 + 0.12 * Math.sin(now * 0.002 + i * 0.5));
