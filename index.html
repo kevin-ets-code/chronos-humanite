@@ -994,9 +994,11 @@
   window._earth = earth;
 
   // ── Clouds — procedural fBm shader layer, sun-reactive ────
+  const isMobile = /Mobi|Android|iPhone|iPad|Touch/i.test(navigator.userAgent) || window.innerWidth < 768;
   const cloudClock = new THREE.Clock();
 
-  const cloudsMat = new THREE.ShaderMaterial({
+  let cloudsMat;
+  if (!isMobile) { cloudsMat = new THREE.ShaderMaterial({
     uniforms: {
       uSun:           { value: new THREE.Vector3(1, 0, 0) },
       uOpacity:       { value: 0.85 },
@@ -1107,7 +1109,17 @@
     transparent: true,
     depthWrite: false,
     side: THREE.FrontSide
-  });
+  }); } else {
+    // Mobile: JPG texture fallback for performance
+    const cloudsTex = loader.load('./textures/earth_clouds.jpg');
+    cloudsMat = new THREE.MeshBasicMaterial({
+      map:         cloudsTex,
+      transparent: true,
+      opacity:     cloudsDensity,
+      depthWrite:  false,
+      blending:    THREE.NormalBlending
+    });
+  }
 
   const cloudsGeo  = new THREE.SphereGeometry(1.003, 64, 64);
   const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
@@ -1216,7 +1228,11 @@
 
     makeVsSlider('vs-cloud-density-track', 'vs-cloud-density-thumb', 'vs-cloud-density-fill',
       0.0, 1.0, cloudsDensity, 'vs-cloud-density',
-      (v) => { cloudsDensity = v; cloudsMat.uniforms.uCloudDensity.value = v; }
+      (v) => {
+        cloudsDensity = v;
+        if (isMobile) cloudsMat.opacity = v;
+        else cloudsMat.uniforms.uCloudDensity.value = v;
+      }
     );
   });
 
@@ -1315,11 +1331,14 @@
       }
     }
 
-    // Synchroniser le soleil des nuages avec celui de la Terre
-    if (window._cloudsMat) window._cloudsMat.uniforms.uSun.value.copy(earthMat.uniforms.uSun.value);
-
-    // Faire évoluer le bruit procédural des nuages dans le temps
-    cloudsMat.uniforms.uTime.value += cloudClock.getDelta() * cloudsSpeed;
+    if (isMobile) {
+      // Mobile: rotate JPG layer relative to earth to simulate cloud drift
+      cloudsMesh.rotation.y += cloudClock.getDelta() * cloudsSpeed * 0.03;
+    } else {
+      // Desktop: sync sun direction and advance procedural noise time
+      if (window._cloudsMat) window._cloudsMat.uniforms.uSun.value.copy(earthMat.uniforms.uSun.value);
+      cloudsMat.uniforms.uTime.value += cloudClock.getDelta() * cloudsSpeed;
+    }
 
     renderer.render(scene, camera);
   })();
