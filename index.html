@@ -871,6 +871,7 @@
     #filters.mobile-open {
       display: block !important;
       transform: translateY(0) !important;
+      padding-top: max(80px, calc(48px + env(safe-area-inset-top, 20px))) !important;
     }
 
     /* ── Settings panel children ── */
@@ -912,7 +913,7 @@
     .mobile-close-btn {
       display: block !important;
       position: absolute;
-      top: 12px; right: 16px;
+      top: max(60px, calc(48px + env(safe-area-inset-top, 12px))); right: 16px;
       font-family: 'DM Mono', monospace;
       font-size: 0.52rem;
       letter-spacing: 0.2em;
