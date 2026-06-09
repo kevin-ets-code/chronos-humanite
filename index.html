@@ -869,9 +869,11 @@
 
     #controls-left.mobile-open,
     #filters.mobile-open {
-      display: block !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: flex-start !important;
       transform: translateY(0) !important;
-      padding-top: 140px !important;
+      padding: 16px 20px 0 !important;
     }
 
     /* ── Settings panel children ── */
@@ -909,23 +911,31 @@
       white-space: normal !important;
     }
 
-    /* ── Close button ── */
-    .mobile-close-btn {
+    /* ── Validate button ── */
+    .mobile-validate-btn {
       display: block !important;
-      position: absolute;
-      top: 100px; right: 16px;
+      position: sticky;
+      bottom: 0;
+      width: 100%;
+      padding: 14px;
+      margin-top: 16px;
+      background: rgba(13, 12, 10, 0.97);
+      border-top: 1px solid rgba(201, 168, 76, 0.2);
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
       font-family: 'DM Mono', monospace;
-      font-size: 0.52rem;
-      letter-spacing: 0.2em;
+      font-size: 0.6rem;
+      letter-spacing: 0.25em;
       text-transform: uppercase;
-      color: rgba(201, 168, 76, 0.7);
-      background: transparent;
-      border: none;
+      color: var(--gold);
       cursor: pointer;
+      text-align: center;
     }
   }
 
-  .mobile-close-btn { display: none; }
+  .mobile-close-btn   { display: none; }
+  .mobile-validate-btn { display: none; }
 
   </style>
 </head>
@@ -1505,7 +1515,6 @@
 
   <!-- ── Contrôles gauche (soleil + sections) ─────────────── -->
   <div id="controls-left">
-    <button class="mobile-close-btn" onclick="closeMobilePanel('settings')">✕ FERMER</button>
     <div id="sun-control">
       <svg id="sun-svg" viewBox="0 0 120 120" width="120" height="120">
         <!-- Cercle complet draggable — 360° -->
@@ -1587,6 +1596,7 @@
         </div>
       </div>
     </div>
+    <button class="mobile-validate-btn" onclick="closeMobilePanel('settings')">— VALIDER —</button>
   </div>
 
   <script>
@@ -2433,9 +2443,9 @@
 
   <!-- ── Filtres catégories ───────────────────────────────────── -->
   <div id="filters">
-    <button class="mobile-close-btn" onclick="closeMobilePanel('filters')">✕ FERMER</button>
     <div id="filters-label">Filtres</div>
     <div id="filters-list"></div>
+    <button class="mobile-validate-btn" onclick="closeMobilePanel('filters')">— VALIDER —</button>
   </div>
 
   <!-- ── Panel latéral ──────────────────────────────────────── -->
