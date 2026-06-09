@@ -1,7 +1,233 @@
 [
-  {"id":"homo-sapiens","title":"Apparition d'Homo sapiens","year":-300000,"yearEnd":-200000,"lat":33.9,"lng":-8.4,"cat":"sc","region":"Afrique du Nord","desc":"Premiers humains anatomiquement modernes à Jebel Irhoud (Maroc). Notre espèce émerge en Afrique, distincte des Néandertaliens."},
-  {"id":"peuplement-australie","title":"Peuplement de l'Australie","year":-65000,"yearEnd":-60000,"lat":-25.0,"lng":133.0,"cat":"ex","region":"Australie","desc":"Les premiers humains arrivent en Australie par voie maritime depuis l'Asie du Sud-Est."},
-  {"id":"peuplement-ameriques","title":"Peuplement des Amériques","year":-20000,"yearEnd":-10000,"lat":64.0,"lng":-168.0,"cat":"ex","region":"Béring","desc":"Des groupes humains franchissent le détroit de Béring depuis la Sibérie."},
-  {"id":"art-rupestre","title":"Art Rupestre — Chauvet, Lascaux","year":-40000,"yearEnd":-10000,"lat":44.8,"lng":5.9,"cat":"ar","region":"Europe occidentale","desc":"Peintures rupestres sophistiquées : mammouths, rhinocéros laineux, bisons représentés avec perspective et mouvement."},
-  {"id":"revolution-neolithique","title":"Révolution Néolithique","year":-10000,"yearEnd":-5000,"lat":36.0,"lng":38.0,"cat":"te","region":"Proche-Orient","desc":"Invention de l'agriculture au Croissant Fertile : blé, orge, lentilles cultivés. Fin du nomadisme."}
+   {
+      "id":"maitrise-feu",
+      "title":"Maîtrise du Feu",
+      "year":-450000,
+      "yearEnd":-300000,
+      "lat":40.8,
+      "lng":111.5,
+      "cat":"te",
+      "region":"Eurasie",
+      "desc":"Homo erectus maîtrise et entretient le feu, attesté à Zhoukoudian (Chine) et Terra Amata (France). Révolution alimentaire, protection contre le froid et premiers rassemblements sociaux autour du foyer."
+   },
+   {
+      "id":"homo-sapiens",
+      "title":"Apparition d'Homo sapiens",
+      "year":-300000,
+      "yearEnd":-200000,
+      "lat":33.9,
+      "lng":-8.4,
+      "cat":"sc",
+      "region":"Afrique du Nord",
+      "desc":"Premiers humains anatomiquement modernes à Jebel Irhoud (Maroc). Notre espèce émerge en Afrique, distincte des Néandertaliens."
+   },
+   {
+      "id":"levallois",
+      "title":"Technique Levallois",
+      "year":-320000,
+      "yearEnd":-30000,
+      "lat":48.9,
+      "lng":2.3,
+      "cat":"te",
+      "region":"Europe occidentale",
+      "desc":"Méthode de débitage de la pierre inventée par les Néandertaliens : le bloc est préparé minutieusement pour en extraire un éclat prédéterminé et régulier. Premier exemple connu d'anticipation technique dans l'histoire humaine."
+   },
+   {
+      "id":"sepultures-proche-orient",
+      "title":"Premières Sépultures",
+      "year":-120000,
+      "yearEnd":-60000,
+      "lat":32.0,
+      "lng":35.0,
+      "cat":"re",
+      "region":"Proche-Orient",
+      "desc":"Premières inhumations intentionnelles au Proche-Orient, puis en Europe vers -60 000. Les Néandertaliens enterrent leurs morts — premier indice d'une pensée symbolique et d'une conscience de la mort."
+   },
+   {
+      "id":"peuplement-australie",
+      "title":"Peuplement de l'Australie",
+      "year":-65000,
+      "yearEnd":-60000,
+      "lat":-25.0,
+      "lng":133.0,
+      "cat":"ex",
+      "region":"Australie",
+      "desc":"Les premiers humains arrivent en Australie par voie maritime depuis l'Asie du Sud-Est. Traversée de haute mer la plus ancienne connue."
+   },
+   {
+      "id":"art-rupestre",
+      "title":"Art Rupestre — Chauvet, Lascaux",
+      "year":-40000,
+      "yearEnd":-10000,
+      "lat":44.8,
+      "lng":5.9,
+      "cat":"ar",
+      "region":"Europe occidentale",
+      "desc":"Peintures rupestres sophistiquées : mammouths, rhinocéros laineux, bisons représentés avec perspective et mouvement. La grotte Chauvet (Ardèche) révèle une maîtrise artistique stupéfiante dès -36 000 ans."
+   },
+   {
+      "id":"extinction-neandertal",
+      "title":"Extinction des Néandertaliens",
+      "year":-30000,
+      "yearEnd":-28000,
+      "lat":36.5,
+      "lng":-4.5,
+      "cat":"sc",
+      "region":"Europe",
+      "desc":"Les Néandertaliens disparaissent après 250 000 ans d'existence, probablement au sud de l'Espagne. Homo sapiens devient la seule espèce du genre Homo. Des traces d'hybridation subsistent dans notre ADN."
+   },
+   {
+      "id":"peuplement-ameriques",
+      "title":"Peuplement des Amériques",
+      "year":-20000,
+      "yearEnd":-10000,
+      "lat":64.0,
+      "lng":-168.0,
+      "cat":"ex",
+      "region":"Béring",
+      "desc":"Des groupes humains franchissent le détroit de Béring depuis la Sibérie. En quelques millénaires, l'Amérique du Nord puis du Sud sont peuplées jusqu'à la Terre de Feu."
+   },
+   {
+      "id":"glaciation-maximale",
+      "title":"Maximum Glaciaire",
+      "year":-21000,
+      "yearEnd":-18000,
+      "lat":47.0,
+      "lng":10.0,
+      "cat":"sc",
+      "region":"Hémisphère Nord",
+      "desc":"Phase la plus froide de la dernière glaciation : les glaces couvrent l'Europe du Nord, le niveau des mers est 120 m plus bas qu'aujourd'hui. L'humanité survit dans quelques refuges tempérés."
+   },
+   {
+      "id":"holocene",
+      "title":"Début de l'Holocène",
+      "year":-10000,
+      "yearEnd":-9500,
+      "lat":0.0,
+      "lng":20.0,
+      "cat":"sc",
+      "region":"Mondial",
+      "desc":"Réchauffement climatique brutal marquant la fin de la dernière ère glaciaire. Bouleversement des écosystèmes, montée des mers, disparition de la mégafaune. L'humanité entre dans une ère de stabilité climatique propice à l'agriculture."
+   },
+   {
+      "id":"revolution-neolithique",
+      "title":"Révolution Néolithique",
+      "year":-10000,
+      "yearEnd":-5000,
+      "lat":36.0,
+      "lng":38.0,
+      "cat":"te",
+      "region":"Proche-Orient",
+      "desc":"Invention de l'agriculture au Croissant Fertile : blé, orge, lentilles cultivés. Fin du nomadisme, début des villages permanents. La plus grande transformation du mode de vie humain avant la révolution industrielle."
+   },
+   {
+      "id":"gobekli-tepe",
+      "title":"Göbekli Tepe — Premier Temple",
+      "year":-9600,
+      "yearEnd":-8200,
+      "lat":37.2,
+      "lng":38.9,
+      "cat":"re",
+      "region":"Anatolie du Sud-Est",
+      "desc":"Des chasseurs-cueilleurs érigent des mégalithes en T de 5 mètres ornés d'animaux sculptés. Premier sanctuaire monumental de l'humanité — 6 000 ans avant Stonehenge. Remet en question l'idée que la religion naît après l'agriculture."
+   },
+   {
+      "id":"domestication-animaux",
+      "title":"Domestication des Animaux",
+      "year":-9000,
+      "yearEnd":-6000,
+      "lat":38.5,
+      "lng":35.0,
+      "cat":"te",
+      "region":"Anatolie",
+      "desc":"Moutons, chèvres, bœufs, porcs domestiqués en Anatolie. Porcs et poulets en Chine, lamas et alpagas en Amérique andine. Le bœuf de labour démultiplie la productivité agricole."
+   },
+   {
+      "id":"jericho",
+      "title":"Jéricho — Première Ville",
+      "year":-9000,
+      "yearEnd":-7000,
+      "lat":31.9,
+      "lng":35.4,
+      "cat":"em",
+      "region":"Levant",
+      "desc":"Fondée près de la mer Morte, l'une des premières concentrations humaines permanentes. Plusieurs centaines d'habitants nourris par l'agriculture irriguée du Jourdain. Premières fortifications connues."
+   },
+   {
+      "id":"catal-hoyuk",
+      "title":"Çatal Höyük — Proto-Ville",
+      "year":-7500,
+      "yearEnd":-5700,
+      "lat":37.7,
+      "lng":32.8,
+      "cat":"em",
+      "region":"Anatolie (Turquie)",
+      "desc":"8 000 habitants, maisons collées les unes aux autres avec accès par le toit, fresques murales, figurines de déesses, obsidienne commercée sur 200 km. Première densité urbaine connue de l'humanité."
+   },
+   {
+      "id":"poterie",
+      "title":"Invention de la Poterie",
+      "year":-7000,
+      "yearEnd":-6000,
+      "lat":32.0,
+      "lng":44.0,
+      "cat":"te",
+      "region":"Mondial",
+      "desc":"La céramique cuite révolutionne le stockage des aliments et des liquides. Première transformation chimique maîtrisée — permet aussi les premières fermentations : bière et vin naissent."
+   },
+   {
+      "id":"megalithisme",
+      "title":"Premières Sépultures Mégalithiques",
+      "year":-4500,
+      "yearEnd":-2500,
+      "lat":47.5,
+      "lng":-2.0,
+      "cat":"re",
+      "region":"Europe occidentale",
+      "desc":"Dolmens, menhirs et tumulus se multiplient en Europe atlantique. Tombes collectives monumentales témoignant d'une organisation sociale complexe et d'un culte des ancêtres élaboré."
+   },
+   {
+      "id":"metallurgie-bronze",
+      "title":"Métallurgie — Cuivre & Bronze",
+      "year":-5000,
+      "yearEnd":-3000,
+      "lat":36.5,
+      "lng":38.5,
+      "cat":"te",
+      "region":"Proche-Orient, Europe",
+      "desc":"Premiers objets en cuivre fondu au Proche-Orient. L'alliage cuivre-étain donne le bronze vers -3 300 — révolution pour armes, outils et bijoux. La maîtrise des métaux crée les premières élites guerrières."
+   },
+   {
+      "id":"invention-roue",
+      "title":"Invention de la Roue",
+      "year":-3500,
+      "yearEnd":-3000,
+      "lat":33.0,
+      "lng":44.0,
+      "cat":"te",
+      "region":"Mésopotamie, Eurasie",
+      "desc":"D'abord tour de potier, puis montée sur axe pour le transport. Le chariot à bœufs permet de déplacer bien plus de marchandises sur de bien plus longues distances. Le commerce longue distance naît."
+   },
+   {
+      "id":"sortie-afrique",
+      "title":"Sortie d'Afrique d'Homo sapiens",
+      "year":-70000,
+      "yearEnd":-50000,
+      "lat":12.0,
+      "lng":43.0,
+      "cat":"ex",
+      "region":"Afrique de l'Est / Arabie",
+      "desc":"Des groupes d'Homo sapiens quittent progressivement l'Afrique en traversant probablement le détroit de Bab-el-Mandeb vers la péninsule Arabique. Cette migration marque le début du peuplement de l'Eurasie puis du reste du monde. Les populations humaines actuelles hors d'Afrique descendent en grande partie de ces vagues migratoires."
+   },
+   {
+      "id":"domestication-chien",
+      "title":"Domestication du Chien",
+      "year":-18000,
+      "yearEnd":-12000,
+      "lat":55.0,
+      "lng":60.0,
+      "cat":"te",
+      "region":"Eurasie",
+      "desc":"Des loups s'associent progressivement aux groupes humains et deviennent le premier animal domestiqué connu. Utilisés pour la chasse, la garde et la compagnie, les chiens accompagnent les humains bien avant l'apparition de l'agriculture et jouent un rôle majeur dans leur adaptation à de nouveaux environnements."
+   }
 ]

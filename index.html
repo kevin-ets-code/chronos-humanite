@@ -720,6 +720,43 @@
     .vs-thumb:hover {
       box-shadow: 0 0 0 2px rgba(13,12,10,0.85), 0 0 10px rgba(201,168,76,0.9);
     }
+
+    /* ── Sections contrôles gauche ──────────────────────────── */
+    .ctrl-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .ctrl-section-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.48rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: rgba(201,168,76,0.5);
+      border-bottom: 1px solid rgba(201,168,76,0.12);
+      padding-bottom: 0.3rem;
+      width: 100%;
+    }
+
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .ctrl-row-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.48rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(245,240,232,0.4);
+      white-space: nowrap;
+    }
+
     #border-bottom {
       position: fixed;
       bottom: 0;
@@ -1307,7 +1344,7 @@
     <div id="ev-line"></div>
   </div>
 
-  <!-- ── Contrôles gauche (soleil + rotation) ─────────────── -->
+  <!-- ── Contrôles gauche (soleil + sections) ─────────────── -->
   <div id="controls-left">
     <div id="sun-control">
       <svg id="sun-svg" viewBox="0 0 120 120" width="120" height="120">
@@ -1329,48 +1366,66 @@
         </g>
       </svg>
       <div id="sun-handle"></div>
-      <span id="sun-label">Soleil</span>
+      <span id="sun-label">SOLEIL</span>
     </div>
 
-    <button id="rotation-toggle" title="Pause rotation">
-      <span id="rotation-icon">⏸</span>
-    </button>
-    <div id="rotation-label">Rotation de la Terre</div>
-
-    <div id="visual-settings">
-
-      <div class="vs-row">
-        <span class="vs-label">ATMOSPHÈRE</span>
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">GLOBE</div>
+      <div class="ctrl-row">
+        <button id="rotation-toggle" title="Pause rotation"><span id="rotation-icon">⏸</span></button>
+        <span class="ctrl-row-label">ROTATION DE LA TERRE</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-row-label">ATMOSPHÈRE</span>
         <div class="vs-track" id="vs-atm-track">
           <div class="vs-fill" id="vs-atm-fill"></div>
           <div class="vs-thumb" id="vs-atm-thumb"></div>
         </div>
       </div>
-
-      <div class="vs-row">
-        <span class="vs-label">NUAGES</span>
-        <div class="vs-track" id="vs-clouds-track">
-          <div class="vs-fill" id="vs-clouds-fill"></div>
-          <div class="vs-thumb" id="vs-clouds-thumb"></div>
-        </div>
-      </div>
-
-      <div class="vs-row">
-        <span class="vs-label">ROTATION</span>
+      <div class="ctrl-row">
+        <span class="ctrl-row-label">VITESSE</span>
         <div class="vs-track" id="vs-rot-track">
           <div class="vs-fill" id="vs-rot-fill"></div>
           <div class="vs-thumb" id="vs-rot-thumb"></div>
         </div>
       </div>
+    </div>
 
-      <div class="vs-row">
-        <span class="vs-label">DENSITÉ NUAGES</span>
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">NUAGES</div>
+      <div class="ctrl-row">
+        <span class="ctrl-row-label">DENSITÉ</span>
         <div class="vs-track" id="vs-cloud-density-track">
           <div class="vs-fill" id="vs-cloud-density-fill"></div>
           <div class="vs-thumb" id="vs-cloud-density-thumb"></div>
         </div>
       </div>
+      <div class="ctrl-row">
+        <span class="ctrl-row-label">VITESSE</span>
+        <div class="vs-track" id="vs-clouds-track">
+          <div class="vs-fill" id="vs-clouds-fill"></div>
+          <div class="vs-thumb" id="vs-clouds-thumb"></div>
+        </div>
+      </div>
+    </div>
 
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">AFFICHAGE</div>
+      <div class="ctrl-row">
+        <span class="ctrl-row-label">EMPIRES</span>
+        <div id="terr-toggle" style="
+          width:36px; height:20px; border-radius:10px;
+          background:rgba(245,240,232,0.1); border:1px solid rgba(201,168,76,0.25);
+          cursor:pointer; position:relative; transition:background 0.2s;
+        ">
+          <div id="terr-toggle-knob" style="
+            position:absolute; top:2px; left:2px;
+            width:14px; height:14px; border-radius:50%;
+            background:rgba(245,240,232,0.3);
+            transition:transform 0.2s, background 0.2s;
+          "></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1552,6 +1607,7 @@
       eraEl.textContent  = window._eras ? getEra(centerYear) : '';
 
       window.currentYearStart = yearStart;
+      updateTerritories(window.currentYearStart);
       window.currentYearEnd   = yearEnd;
       document.dispatchEvent(new Event('rangechange'));
 
@@ -1744,13 +1800,16 @@
     ];
 
     async function loadData() {
-      const [categories, erasData, ...eventsData] = await Promise.all([
+      const [categories, erasData, territoriesData, ...eventsData] = await Promise.all([
         fetch('./data/categories.json').then(r => r.json()),
         fetch('./data/eras.json').then(r => r.json()),
+        fetch('./data/territories.json').then(r => r.json()),
         ...ERA_FILES.map(f => fetch('./data/' + f + '.json').then(r => r.json()))
       ]);
       window._categories = categories;
       window._eras = erasData;
+      window._territories = territoriesData.features;
+      console.log('Territoires chargés:', window._territories.length);
       document.dispatchEvent(new Event('dataLoaded'));
       return { categories, events: eventsData.flat() };
     }
@@ -2305,6 +2364,241 @@
     panelClose.addEventListener('click', closePanel);
     overlay.addEventListener('click', closePanel);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+  })();
+
+  // ── Territories — canvas texture approach ─────────────────
+  const TERR_W = 4096, TERR_H = 2048;
+  const terrCanvas = document.createElement('canvas');
+  terrCanvas.width = TERR_W; terrCanvas.height = TERR_H;
+  const terrCtx = terrCanvas.getContext('2d');
+  const terrTex = new THREE.CanvasTexture(terrCanvas);
+
+  const terrSphere = new THREE.Mesh(
+    new THREE.SphereGeometry(1.004, 64, 64),
+    new THREE.MeshBasicMaterial({
+      map: terrTex,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      opacity: 1,
+    })
+  );
+  window._earth.add(terrSphere);
+  window._terrSphere = terrSphere;
+
+  function lngLatToXY(lng, lat) {
+    const x = (lng + 180) / 360 * TERR_W;
+    const y = (90 - lat) / 180 * TERR_H;
+    return [x, y];
+  }
+
+  function drawTerritoriesCanvas(year) {
+    if (!window._territories) return;
+
+    // Grouper par id, trouver le bon snapshot
+    const groups = {};
+    window._territories.forEach(f => {
+      const id = f.properties.id;
+      if (!groups[id]) groups[id] = [];
+      groups[id].push(f);
+    });
+
+    // Calculer une clé représentant les snapshots actifs
+    const activeKey = Object.values(groups).map(snapshots => {
+      snapshots.sort((a, b) => a.properties.fromYear - b.properties.fromYear);
+      const lastYear = snapshots[snapshots.length - 1].properties.toYear;
+      if (year < snapshots[0].properties.fromYear || year > lastYear) return 'none';
+      let best = null;
+      for (const s of snapshots) {
+        if (s.properties.fromYear <= year) best = s;
+        else break;
+      }
+      return best ? `${best.properties.id}-${best.properties.fromYear}` : 'none';
+    }).join('|');
+
+    if (activeKey === window._terrLastKey) return; // Rien n'a changé
+    window._terrLastKey = activeKey;
+
+    terrCtx.clearRect(0, 0, TERR_W, TERR_H);
+
+    Object.values(groups).forEach(snapshots => {
+      snapshots.sort((a, b) => a.properties.fromYear - b.properties.fromYear);
+      const lastYear = snapshots[snapshots.length - 1].properties.toYear;
+      if (year < snapshots[0].properties.fromYear || year > lastYear) return;
+
+      let best = null;
+      for (const s of snapshots) {
+        if (s.properties.fromYear <= year) best = s;
+        else break;
+      }
+      if (!best) return;
+
+      const color = best.properties.color || '#ffffff';
+      const geom = best.geometry;
+
+      function drawRing(ring) {
+        if (ring.length < 3) return;
+        terrCtx.beginPath();
+        const [x0, y0] = lngLatToXY(ring[0][0], ring[0][1]);
+        terrCtx.moveTo(x0, y0);
+        for (let i = 1; i < ring.length; i++) {
+          const [x, y] = lngLatToXY(ring[i][0], ring[i][1]);
+          terrCtx.lineTo(x, y);
+        }
+        terrCtx.closePath();
+        // Fill
+        terrCtx.fillStyle = color;
+        terrCtx.globalAlpha = 0.4;
+        terrCtx.fill();
+        // Border
+        terrCtx.globalAlpha = 0.8;
+        terrCtx.strokeStyle = color;
+        terrCtx.lineWidth = 3;
+        terrCtx.stroke();
+      }
+
+      if (geom.type === 'Polygon') {
+        geom.coordinates.forEach(ring => drawRing(ring));
+      } else if (geom.type === 'MultiPolygon') {
+        geom.coordinates.forEach(poly => poly.forEach(ring => drawRing(ring)));
+      }
+    });
+
+    terrCtx.globalAlpha = 1;
+    terrTex.needsUpdate = true;
+  }
+
+  window.updateTerritories = drawTerritoriesCanvas;
+  drawTerritoriesCanvas(window.currentYearStart || 0);
+
+  (function() {
+    const toggle = document.getElementById('terr-toggle');
+    const knob = document.getElementById('terr-toggle-knob');
+
+    const params = new URLSearchParams(window.location.search);
+    let visible = params.has('empires')
+      ? params.get('empires') !== '0'
+      : localStorage.getItem('terr-visible') !== '0';
+
+    function applyState() {
+      terrSphere.visible = visible;
+      toggle.style.background = visible
+        ? 'rgba(201,168,76,0.4)'
+        : 'rgba(245,240,232,0.1)';
+      knob.style.transform = visible ? 'translateX(16px)' : 'translateX(0)';
+      knob.style.background = visible ? '#c9a84c' : 'rgba(245,240,232,0.3)';
+      localStorage.setItem('terr-visible', visible ? '1' : '0');
+      const p = new URLSearchParams(window.location.search);
+      p.set('empires', visible ? '1' : '0');
+      window.history.replaceState(null, '', '?' + p.toString());
+    }
+
+    toggle.addEventListener('click', () => {
+      visible = !visible;
+      applyState();
+    });
+
+    const origInit = window.updateTerritories;
+    window.updateTerritories = function(y) {
+      origInit(y);
+      applyState();
+      window.updateTerritories = origInit;
+    };
+  })();
+  </script>
+
+  <div id="terr-tooltip" style="
+    position:fixed; pointer-events:none; z-index:150;
+    background:rgba(13,12,10,0.88); border:1px solid rgba(201,168,76,0.35);
+    padding:6px 12px; font-family:'DM Mono',monospace; font-size:0.65rem;
+    letter-spacing:0.15em; text-transform:uppercase; color:#f5f0e8;
+    opacity:0; transition:opacity 0.2s ease; white-space:nowrap;
+    backdrop-filter:blur(8px);
+  "></div>
+
+  <script>
+  // ── Territory hover tooltip ───────────────────────────────
+  (function() {
+    const tooltip = document.getElementById('terr-tooltip');
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function pointInPolygon(lng, lat, ring) {
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0], yi = ring[i][1];
+        const xj = ring[j][0], yj = ring[j][1];
+        if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+          inside = !inside;
+        }
+      }
+      return inside;
+    }
+
+    function pointInFeature(lng, lat, feature) {
+      const geom = feature.geometry;
+      if (geom.type === 'Polygon') {
+        return geom.coordinates.some(ring => pointInPolygon(lng, lat, ring));
+      } else if (geom.type === 'MultiPolygon') {
+        return geom.coordinates.some(poly => poly.some(ring => pointInPolygon(lng, lat, ring)));
+      }
+      return false;
+    }
+
+    function getActiveSnapshot(id, year) {
+      const snaps = window._territories.filter(f => f.properties.id === id);
+      snaps.sort((a, b) => a.properties.fromYear - b.properties.fromYear);
+      const last = snaps[snaps.length - 1];
+      if (year < snaps[0].properties.fromYear || year > last.properties.toYear) return null;
+      let best = null;
+      for (const s of snaps) {
+        if (s.properties.fromYear <= year) best = s;
+        else break;
+      }
+      return best;
+    }
+
+    window.addEventListener('mousemove', e => {
+      if (!window._territories || !window._earth) return;
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, window._camera);
+      const hits = raycaster.intersectObject(window._earth, false);
+      if (!hits.length) {
+        tooltip.style.opacity = '0';
+        return;
+      }
+
+      const p = hits[0].point.clone();
+      const inv = window._earth.matrixWorld.clone().invert();
+      p.applyMatrix4(inv);
+      p.normalize();
+      const lat = Math.asin(p.y) * 180 / Math.PI;
+      const lng = Math.atan2(p.x, p.z) * 180 / Math.PI + 90;
+      const lngNorm = ((lng % 360) + 360) % 360 - 180;
+
+      const year = window.currentYearStart || 0;
+      const ids = [...new Set(window._territories.map(f => f.properties.id))];
+      let found = null;
+      for (const id of ids) {
+        const snap = getActiveSnapshot(id, year);
+        if (snap && pointInFeature(lngNorm, lat, snap)) {
+          found = snap.properties.name_fr;
+          break;
+        }
+      }
+
+      if (found) {
+        tooltip.textContent = found;
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+        tooltip.style.opacity = '1';
+      } else {
+        tooltip.style.opacity = '0';
+      }
+    });
   })();
   </script>
 </body>
