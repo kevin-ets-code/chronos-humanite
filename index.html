@@ -555,6 +555,40 @@
     @keyframes introLine {
       to { width: 200px; }
     }
+    #intro-progress-wrap {
+      position: absolute;
+      bottom: 3rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    #intro-progress-bar {
+      width: 100%;
+      height: 1px;
+      background: rgba(201, 168, 76, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+    #intro-progress-bar::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      height: 100%;
+      width: var(--progress, 0%);
+      background: var(--gold, #c9a84c);
+      transition: width 0.3s ease;
+    }
+    #intro-progress-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.5rem;
+      letter-spacing: 0.3em;
+      color: rgba(201, 168, 76, 0.5);
+      text-transform: uppercase;
+    }
     @keyframes fadeUp {
       from { opacity: 0; transform: translateX(-50%) translateY(6px); }
       to   { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -1008,6 +1042,10 @@
       <div id="intro-line"></div>
       <div id="intro-hint">Glissez le curseur pour voyager dans le temps</div>
     </div>
+    <div id="intro-progress-wrap">
+      <div id="intro-progress-bar"></div>
+      <div id="intro-progress-label">CHARGEMENT</div>
+    </div>
   </div>
 
   <div id="globe-title">
@@ -1075,14 +1113,37 @@
   camera.position.z = 3;
   window._camera = camera;
 
+  // ── Intro close ───────────────────────────────────────────
+  window._introClosed = false;
+  window.closeIntro = function() {
+    if (window._introClosed) return;
+    window._introClosed = true;
+    const bar = document.getElementById('intro-progress-bar');
+    if (bar) bar.style.setProperty('--progress', '100%');
+    setTimeout(() => {
+      const introEl = document.getElementById('intro-screen');
+      if (!introEl) return;
+      introEl.style.transition = 'opacity 0.8s ease';
+      introEl.style.opacity = '0';
+      setTimeout(() => introEl.remove(), 800);
+    }, 500);
+  };
+
   // ── Loading manager ───────────────────────────────────────
   const manager = new THREE.LoadingManager(
-    () => { setTimeout(dismissLoading, 300); },
-    (_, loaded, total) => { fillEl.style.width = (loaded / total * 100) + '%'; },
+    () => { setTimeout(dismissLoading, 300); window.closeIntro(); },
+    (_, loaded, total) => {
+      fillEl.style.width = (loaded / total * 100) + '%';
+      const pct = Math.round((loaded / total) * 100);
+      const bar = document.getElementById('intro-progress-bar');
+      if (bar) bar.style.setProperty('--progress', pct + '%');
+    },
     (url) => { console.warn('Texture load failed:', url); }
   );
   // Fallback: dismiss loading screen after 10s regardless
   setTimeout(dismissLoading, 10000);
+  // Fallback: close intro after 4s max
+  setTimeout(window.closeIntro, 4000);
 
   const loader = new THREE.TextureLoader(manager);
   loader.crossOrigin = 'anonymous';
@@ -2483,13 +2544,7 @@
         setTimeout(() => histEl.remove(), 900);
       }
 
-      const introEl = document.getElementById('intro-screen');
-      if (introEl) {
-        setTimeout(() => {
-          introEl.classList.add('hide');
-          setTimeout(() => introEl.remove(), 1200);
-        }, 2800);
-      }
+      window.closeIntro();
     }
 
     init();
