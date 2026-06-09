@@ -871,7 +871,7 @@
       flex-direction: column !important;
       justify-content: flex-start !important;
       transform: translateY(0) !important;
-      height: 100vh !important;
+      height: 100dvh !important;
       overflow: hidden !important;
       padding: 0 !important;
     }
@@ -913,32 +913,39 @@
 
     /* ── Scroll wrapper ── */
     .mobile-panel-scroll {
-      display: block;
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 16px 20px;
-      box-sizing: border-box;
+      display: flex !important;
+      flex-direction: column !important;
+      flex: 1 1 auto !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      padding: 24px 20px 16px 20px !important;
+      gap: 4px !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Breathing room between ctrl-sections in settings */
+    .mobile-panel-scroll .ctrl-section {
+      margin-top: 12px !important;
     }
 
     /* ── Validate button ── */
     .mobile-validate-btn {
       display: block !important;
-      flex-shrink: 0;
-      width: 100%;
-      padding: 16px;
-      background: rgba(13, 12, 10, 0.97);
-      border-top: 1px solid rgba(201, 168, 76, 0.2);
-      border-left: none;
-      border-right: none;
-      border-bottom: none;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.6rem;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      color: var(--gold);
-      cursor: pointer;
-      text-align: center;
+      flex: 0 0 auto !important;
+      width: 100% !important;
+      padding: 18px !important;
+      background: rgba(13, 12, 10, 0.98) !important;
+      border-top: 1px solid rgba(201, 168, 76, 0.25) !important;
+      border-left: none !important;
+      border-right: none !important;
+      border-bottom: none !important;
+      font-family: 'DM Mono', monospace !important;
+      font-size: 0.6rem !important;
+      letter-spacing: 0.25em !important;
+      text-transform: uppercase !important;
+      color: var(--gold) !important;
+      cursor: pointer !important;
+      text-align: center !important;
     }
   }
 
