@@ -2804,19 +2804,32 @@
   <script>
   /* ── Mobile panel toggle ─────────────────────────────────── */
   const _mobilePanelIds = { settings: 'controls-left', filters: 'filters' };
+  const _mq = window.matchMedia('(max-width: 767px)');
 
-  // Initialize panels as hidden; display is managed by JS for slide animation
-  Object.values(_mobilePanelIds).forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
+  function _syncPanelDisplay() {
+    Object.values(_mobilePanelIds).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (_mq.matches) {
+        // Mobile: hide closed panels via inline style so slide animation works
+        if (!el.classList.contains('mobile-open')) el.style.display = 'none';
+      } else {
+        // Desktop: remove inline style so natural CSS display takes over
+        el.style.display = '';
+        el.classList.remove('mobile-open');
+        document.body.style.overflow = '';
+      }
+    });
+  }
+  _syncPanelDisplay();
+  _mq.addEventListener('change', _syncPanelDisplay);
 
   function closeMobilePanel(name) {
     const el = document.getElementById(_mobilePanelIds[name]);
     if (!el) return;
     el.classList.remove('mobile-open');
     el.addEventListener('transitionend', function handler() {
-      el.style.display = 'none';
+      if (_mq.matches) el.style.display = 'none';
       el.removeEventListener('transitionend', handler);
     });
     document.body.style.overflow = '';
