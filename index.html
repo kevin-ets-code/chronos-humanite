@@ -803,6 +803,12 @@
   }
 
   @media (max-width: 767px) {
+
+    body {
+      overflow-x: hidden;
+    }
+
+    /* ── Nav bar ── */
     #mobile-nav {
       display: flex;
       position: fixed;
@@ -818,6 +824,14 @@
       border-bottom: 1px solid rgba(201, 168, 76, 0.15);
     }
 
+    /* Title truly centered regardless of button widths */
+    #mobile-nav > div {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
     #mobile-nav button {
       font-family: 'DM Mono', monospace;
       font-size: 0.52rem;
@@ -830,6 +844,7 @@
       padding: 8px 4px;
     }
 
+    /* ── Shared panel rules ── */
     #controls-left,
     #filters {
       display: none !important;
@@ -847,7 +862,9 @@
       transform: translateY(100%);
       transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
       overflow-y: auto !important;
-      padding-top: 56px !important;
+      overflow-x: hidden !important;
+      padding: 64px 20px 40px !important;
+      box-sizing: border-box !important;
     }
 
     #controls-left.mobile-open,
@@ -856,6 +873,42 @@
       transform: translateY(0) !important;
     }
 
+    /* ── Settings panel children ── */
+    #controls-left * {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    #controls-left input[type=range] {
+      width: calc(100% - 8px) !important;
+    }
+
+    /* Center the sun orbit SVG within the full-width panel */
+    #sun-control {
+      margin: 0 auto !important;
+      display: block !important;
+    }
+
+    /* ── Filters panel: left-align label and chips ── */
+    #filters-label {
+      align-self: flex-start;
+    }
+
+    #filters-list {
+      align-items: flex-start !important;
+      justify-content: flex-start !important;
+      flex-direction: row !important;
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+      width: 100% !important;
+    }
+
+    #filters-list .fbt {
+      margin: 0 !important;
+      white-space: normal !important;
+    }
+
+    /* ── Close button ── */
     .mobile-close-btn {
       display: block !important;
       position: absolute;
