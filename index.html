@@ -373,6 +373,7 @@
     }
     #side-panel.open {
       transform: translateX(0);
+      padding: 0 !important;
     }
     #panel-close {
       position: absolute;
@@ -395,7 +396,7 @@
       color: #c9a84c;
     }
     #panel-content {
-      padding: 3rem 2rem 2rem;
+      padding: 2rem;
     }
     #panel-cat-tag {
       font-family: 'DM Mono', monospace;
@@ -970,6 +971,10 @@
 
     #side-panel::before {
       display: none !important;
+    }
+
+    #panel-content {
+      padding: 1rem;
     }
   }
 
