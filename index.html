@@ -1919,8 +1919,10 @@
       const r  = control.getBoundingClientRect();
       const lx = c.clientX - r.left;
       const ly = c.clientY - r.top;
-      // atan2(sin, cos) avec sin = (lx-CX)/R, cos = (CY-ly)/R
-      return Math.atan2(lx - CX, CY - ly);
+      const svgRect = document.getElementById('sun-svg').getBoundingClientRect();
+      const cx = svgRect.left - r.left + svgRect.width  / 2;
+      const cy = svgRect.top  - r.top  + svgRect.height / 2;
+      return Math.atan2(lx - cx, cy - ly);
     }
 
     // Clic/drag sur n'importe quelle partie du contrôle
