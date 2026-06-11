@@ -1177,10 +1177,21 @@
       uNormalMap:   { value: normalTex },
       uSpecularMap: { value: specularTex },
       uSunColor:    { value: new THREE.Vector3(1.0, 0.95, 0.85) },
+      // Ombres portées des nuages (desktop only — forcé à 0 sur mobile).
+      // uTime/uCloudDensity sont tenus en phase avec le shader nuages dans
+      // la boucle render et le slider densité. Calibrage console :
+      // window._earthMat.uniforms.uCloudShadowStrength.value
+      uTime:                { value: 0.0 },
+      uCloudDensity:        { value: cloudsDensity },
+      uCloudShadowStrength: { value: 0.35 },
     },
     vertexShader: /* glsl */`
+      uniform vec3 uSun;
+
       varying vec2 vUv;
       varying vec3 vNormalW;
+      varying vec3 vNormalL;
+      varying vec3 vSunL;
       varying vec3 vTangentW;
       varying vec3 vBitangentW;
       varying vec3 vViewDir;
@@ -1191,6 +1202,14 @@
         mat3 mModel  = mat3(modelMatrix);
         vec3 normalW = normalize(mModel * normal);
         vNormalW     = normalW;
+
+        // Repère local du globe = repère du shader nuages (cloudsMesh est
+        // enfant de earth sans rotation propre sur desktop) : le bruit y est
+        // ancré, l'ombre ne dérive donc pas avec la rotation du globe.
+        vNormalL = normalize(normal);
+        // uSun (monde) → local : transpose(mModel) * uSun (rotation pure),
+        // GLSL ES 1.0 n'a pas transpose() — produit ligne à ligne.
+        vSunL = vec3(dot(mModel[0], uSun), dot(mModel[1], uSun), dot(mModel[2], uSun));
 
         // Tangente robuste : évite la dégénérescence près des pôles
         vec3 up      = abs(normalW.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
@@ -1212,12 +1231,74 @@
       uniform vec3      uSun;
       uniform vec3      uSunColor;
       uniform float     uNightLights;
+      uniform float     uTime;
+      uniform float     uCloudDensity;
+      uniform float     uCloudShadowStrength;
 
       varying vec2 vUv;
       varying vec3 vNormalW;
+      varying vec3 vNormalL;
+      varying vec3 vSunL;
       varying vec3 vTangentW;
       varying vec3 vBitangentW;
       varying vec3 vViewDir;
+
+      // ── Ombres des nuages : duplication du bruit du shader nuages ──
+      // hash3/noise et toutes les constantes (échelle 3.5, t*0.04, offsets de
+      // warping, seuils, masque latitudinal) sont identiques au shader nuages.
+      // Seul le fBm est dégradé : 3 octaves au lieu de 6 — l'ombre est floue
+      // par nature, les basses fréquences suffisent à caler la position.
+      vec3 hash3(vec3 p) {
+        p = vec3(dot(p,vec3(127.1,311.7,74.7)),
+                 dot(p,vec3(269.5,183.3,246.1)),
+                 dot(p,vec3(113.5,271.9,124.6)));
+        return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+      }
+      float noise(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        vec3 u = f*f*(3.0-2.0*f);
+        return mix(mix(mix(dot(hash3(i+vec3(0,0,0)),f-vec3(0,0,0)),
+                           dot(hash3(i+vec3(1,0,0)),f-vec3(1,0,0)),u.x),
+                       mix(dot(hash3(i+vec3(0,1,0)),f-vec3(0,1,0)),
+                           dot(hash3(i+vec3(1,1,0)),f-vec3(1,1,0)),u.x),u.y),
+                   mix(mix(dot(hash3(i+vec3(0,0,1)),f-vec3(0,0,1)),
+                           dot(hash3(i+vec3(1,0,1)),f-vec3(1,0,1)),u.x),
+                       mix(dot(hash3(i+vec3(0,1,1)),f-vec3(0,1,1)),
+                           dot(hash3(i+vec3(1,1,1)),f-vec3(1,1,1)),u.x),u.y),u.z);
+      }
+      float fbmShadow(vec3 p) {
+        float v = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 3; i++) {
+          v += a * noise(p);
+          p = p * 2.1 + vec3(1.7,9.2,3.4);
+          a *= 0.5;
+        }
+        return v * 0.5 + 0.5;
+      }
+      // Couverture nuageuse au point n (normale locale) — même pipeline que
+      // le shader nuages : double domain warping puis seuil + masque latitude.
+      float cloudCoverAt(vec3 n) {
+        float t = uTime * 0.04;
+        vec3 p = n * 3.5 + vec3(t * 0.7, t * 0.3, t * 0.5);
+        vec3 q = vec3(
+          fbmShadow(p + vec3(0.0, 0.0, 0.0)),
+          fbmShadow(p + vec3(5.2, 1.3, 2.8)),
+          fbmShadow(p + vec3(1.7, 9.2, 3.4))
+        );
+        vec3 r = vec3(
+          fbmShadow(p + 4.0 * q + vec3(1.7, 9.2, 3.4)),
+          fbmShadow(p + 4.0 * q + vec3(8.3, 2.8, 5.1)),
+          fbmShadow(p + 4.0 * q + vec3(4.1, 7.3, 1.9))
+        );
+        float density   = fbmShadow(p + 4.0 * r);
+        float threshold = mix(0.65, 0.35, uCloudDensity);
+        float lat = abs(n.y);
+        float latMask = 1.0
+          - 0.5 * smoothstep(0.2, 0.35, lat) * smoothstep(0.5, 0.35, lat);
+        return smoothstep(threshold, threshold + 0.18, density) * latMask;
+      }
 
       void main() {
         // --- Normal map ---
@@ -1237,6 +1318,23 @@
         // uNormalMap / uSpecularMap sont des maps techniques : restent linéaires.
         day.rgb   = pow(day.rgb,   vec3(2.2));
         night.rgb = pow(night.rgb, vec3(2.2));
+
+        // --- Ombres portées des nuages (jour uniquement) ---
+        // Branche uniforme : court-circuitée sur mobile (strength = 0).
+        if (uCloudShadowStrength > 0.0) {
+          vec3  nL    = normalize(vNormalL);
+          vec3  sunL  = normalize(vSunL);
+          float sunUp = dot(nL, sunL);
+          // Parallaxe : on échantillonne le champ nuageux au point où le
+          // rayon solaire traverse la couche (offset tangentiel, amplifié
+          // au soleil rasant, borné pour éviter la divergence au terminateur).
+          // Gap réel terre/nuages = 0.003, exagéré ici pour la lisibilité.
+          vec3 sunT   = sunL - nL * sunUp;
+          vec3 nCloud = normalize(nL + sunT * (0.015 / max(sunUp, 0.25)));
+          float cloudShadow = cloudCoverAt(nCloud);
+          // blend = éclairage jour existant : pas d'ombre la nuit ni au terminateur
+          day.rgb *= 1.0 - cloudShadow * uCloudShadowStrength * blend;
+        }
 
         // --- Specular (ocean glint) ---
         float specMask = texture2D(uSpecularMap, vUv).r;
@@ -1264,6 +1362,8 @@
 
   // ── Clouds — procedural fBm shader layer, sun-reactive ────
   const isMobile = /Mobi|Android|iPhone|iPad|Touch/i.test(navigator.userAgent) || window.innerWidth < 768;
+  // Mobile : nuages JPG sans fBm → pas d'ombres portées (branche shader coupée)
+  if (isMobile) earthMat.uniforms.uCloudShadowStrength.value = 0.0;
   const cloudClock = new THREE.Clock();
 
   let cloudsMat;
@@ -1503,8 +1603,13 @@
       0.0, 1.0, cloudsDensity, 'vs-cloud-density',
       (v) => {
         cloudsDensity = v;
-        if (isMobile) cloudsMat.opacity = v;
-        else cloudsMat.uniforms.uCloudDensity.value = v;
+        if (isMobile) {
+          cloudsMat.opacity = v;
+        } else {
+          cloudsMat.uniforms.uCloudDensity.value = v;
+          // Même seuil de densité côté Terre : l'ombre suit le slider
+          earthMat.uniforms.uCloudDensity.value = v;
+        }
       }
     );
   });
@@ -1611,6 +1716,8 @@
       // Desktop: sync sun direction and advance procedural noise time
       if (window._cloudsMat) window._cloudsMat.uniforms.uSun.value.copy(earthMat.uniforms.uSun.value);
       cloudsMat.uniforms.uTime.value += cloudClock.getDelta() * cloudsSpeed;
+      // Même horloge côté Terre : l'ombre reste calée sur les nuages visibles
+      earthMat.uniforms.uTime.value = cloudsMat.uniforms.uTime.value;
     }
 
     renderer.render(scene, camera);
