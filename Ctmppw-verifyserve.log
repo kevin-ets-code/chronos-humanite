@@ -1,0 +1,87 @@
+ INFO  Accepting connections at http://localhost:8123
+ HTTP  08/06/2026 15:56:44 ::1 GET /
+ HTTP  08/06/2026 15:56:44 ::1 Returned 200 in 49 ms
+ HTTP  08/06/2026 15:57:39 ::1 GET /
+ HTTP  08/06/2026 15:57:39 ::1 Returned 200 in 3 ms
+ HTTP  08/06/2026 15:57:42 ::1 GET /textures/earth_daymap.jpg
+ HTTP  08/06/2026 15:57:42 ::1 GET /textures/earth_nightmap.jpg
+ HTTP  08/06/2026 15:57:42 ::1 GET /textures/earth_specular_map.jpg
+ HTTP  08/06/2026 15:57:42 ::1 GET /textures/earth_normal_map.jpg
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 14 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 26 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 32 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 47 ms
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/timeline-config.json
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/categories.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/eras.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/01-prehistoire.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/02-antiquite.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/03-inde-chine.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/04-ameriques.json
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 6 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 8 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 8 ms
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/05-grece-rome.json
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 6 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 5 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 7 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 3 ms
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/06-moyen-age.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/07-islam.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/08-afrique-oceanie.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/09-renaissance.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/10-lumieres.json
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 3 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 3 ms
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/11-industriel.json
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 3 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/12-xxe.json
+ HTTP  08/06/2026 15:57:42 ::1 GET /data/13-xxie.json
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:57:42 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:52 ::1 GET /
+ HTTP  08/06/2026 15:59:52 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /textures/earth_daymap.jpg
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /textures/earth_normal_map.jpg
+ HTTP  08/06/2026 15:59:53 ::1 GET /textures/earth_specular_map.jpg
+ HTTP  08/06/2026 15:59:53 ::1 GET /textures/earth_nightmap.jpg
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/timeline-config.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/categories.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/eras.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/01-prehistoire.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/02-antiquite.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/03-inde-chine.json
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/04-ameriques.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/05-grece-rome.json
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/06-moyen-age.json
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/07-islam.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/08-afrique-oceanie.json
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/09-renaissance.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 1 ms
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/10-lumieres.json
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/11-industriel.json
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/12-xxe.json
+ HTTP  08/06/2026 15:59:53 ::1 GET /data/13-xxie.json
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 3 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 2 ms
+ HTTP  08/06/2026 15:59:53 ::1 Returned 200 in 2 ms
