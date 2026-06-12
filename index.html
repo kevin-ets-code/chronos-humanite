@@ -1913,6 +1913,62 @@
 
   cnv.addEventListener('touchend', () => { dragging = false; });
 
+  // ── Bloom desktop (EffectComposer + UnrealBloomPass) ─────
+  // Les scripts examples/js de r128 sont absents de cdnjs (404, même cas
+  // qu'earcut) : embarqués dans js/vendor/ depuis le tag r128 du repo
+  // three.js, chargés dynamiquement sur DESKTOP UNIQUEMENT. Sur mobile
+  // composer reste null → la boucle garde le rendu direct actuel.
+  let composer = null;
+
+  function initBloom() {
+    const c = new THREE.EffectComposer(renderer);
+    // Render targets en sRGB : en r128 l'encoding de sortie d'un matériau
+    // suit la texture du render target courant (le tone mapping, lui, ne
+    // dépend que du matériau et s'applique donc déjà dans le RT). La scène
+    // s'encode ainsi dans le RT exactement comme elle s'encodait sur le
+    // canvas — ACES + sRGB pour Terre/nuages, halo et étoiles hors ACES
+    // inchangés, pas d'image délavée ni de double tonemapping. Le bloom
+    // travaille donc en espace sRGB (threshold compris) : acceptable pour
+    // un glow subtil, et c'est ce qui garantit la base identique.
+    c.renderTarget1.texture.encoding = THREE.sRGBEncoding;
+    c.renderTarget2.texture.encoding = THREE.sRGBEncoding;
+
+    c.addPass(new THREE.RenderPass(scene, camera));
+
+    const bloom = new THREE.UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.35, // strength
+      0.4,  // radius
+      0.85  // threshold
+    );
+    // La copie écran du rendu de base (MeshBasicMaterial interne du pass)
+    // ne doit pas réappliquer l'ACES : le readBuffer est déjà tonemappé.
+    // toneMapped=false → décodage sRGB + réencodage sRGB = identité.
+    bloom.basic.toneMapped = false;
+    c.addPass(bloom);
+
+    window._bloom = bloom; // calibrage console : strength / radius / threshold
+    composer = c;
+  }
+
+  if (!isMobile) {
+    // async=false : exécution dans l'ordre d'insertion (UnrealBloomPass
+    // étend THREE.Pass défini par EffectComposer, etc.)
+    const BLOOM_SCRIPTS = [
+      'CopyShader', 'LuminosityHighPassShader', 'EffectComposer',
+      'ShaderPass', 'RenderPass', 'UnrealBloomPass'
+    ];
+    let bloomToLoad = BLOOM_SCRIPTS.length;
+    BLOOM_SCRIPTS.forEach((name) => {
+      const s = document.createElement('script');
+      s.src = './js/vendor/' + name + '.js';
+      s.async = false;
+      s.onload  = () => { if (--bloomToLoad === 0) initBloom(); };
+      s.onerror = () => console.warn('Bloom : échec de chargement', s.src);
+      document.head.appendChild(s);
+    });
+  }
+
   // ── Animation loop ────────────────────────────────────────
   (function loop() {
     requestAnimationFrame(loop);
@@ -1954,7 +2010,11 @@
     // nuages.
     starMat.uniforms.uTime.value = cloudClock.elapsedTime;
 
-    renderer.render(scene, camera);
+    // Desktop : composer (RenderPass + UnrealBloomPass) dès qu'il est
+    // initialisé ; mobile (et premières frames le temps du chargement
+    // des scripts) : rendu direct inchangé.
+    if (composer) composer.render();
+    else renderer.render(scene, camera);
   })();
 
   // ── Resize ────────────────────────────────────────────────
@@ -1962,6 +2022,7 @@
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
   });
   </script>
 
