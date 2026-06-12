@@ -1636,10 +1636,16 @@
       }
     );
 
-    // Vitesse de rotation du ciel : max 0.015 rad/s ≈ un tour en ~7 min
+    // Vitesse de rotation du ciel : max 0.015 rad/s ≈ un tour en ~7 min.
+    // Pilote aussi le twinkle, en binaire strict : rotation nulle =
+    // étoiles figées, toute rotation > 0 = même scintillement (amplitude
+    // et lenteur constantes, horloge globale).
     makeVsSlider('vs-sky-rot-track', 'vs-sky-rot-thumb', 'vs-sky-rot-fill',
       0.0, 0.015, skySpeed, 'vs-sky-rot',
-      (v) => { skySpeed = v; }
+      (v) => {
+        skySpeed = v;
+        starMat.uniforms.uTwinkleOn.value = v === 0 ? 0.0 : 1.0;
+      }
     );
 
     makeVsSlider('vs-clouds-track', 'vs-clouds-thumb', 'vs-clouds-fill',
@@ -1712,7 +1718,7 @@
     // d'entre elles scintillent → ~20% du total. Les autres : vitesse
     // nulle (brillance figée par la phase, pas de branche dans le shader)
     sTwSpeed[i] = (sSize[i] > 0.8125 && Math.random() < 0.40)
-                ? 0.03 + Math.random() * 0.07 : 0.0;
+                ? 0.25 + Math.random() * 0.35 : 0.0;
     sTwPhase[i] = Math.random() * Math.PI * 2;
   }
 
@@ -1730,7 +1736,12 @@
     uniforms: {
       uTime:       { value: 0.0 },
       uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
-      uTwinkleAmp: { value: 0.2 },
+      uTwinkleAmp: { value: 0.25 },
+      // Binaire strict : 1.0 dès que la rotation du ciel est non nulle,
+      // 0.0 si elle est à zéro (étoiles parfaitement figées). Mis à jour
+      // par le listener du slider ROTATION, initialisé plus bas avec la
+      // valeur persistée de skySpeed.
+      uTwinkleOn:  { value: 1.0 },
     },
     vertexShader: /* glsl */`
       attribute float aSize;
@@ -1741,6 +1752,7 @@
       uniform float uTime;
       uniform float uPixelRatio;
       uniform float uTwinkleAmp;
+      uniform float uTwinkleOn;
 
       varying vec3  vColor;
       varying float vTwinkle;
@@ -1751,7 +1763,7 @@
         // perceptible, évite l'effet stroboscopique du sinus pur)
         float t1 = sin(uTime * aTwinkleSpeed + aTwinklePhase);
         float t2 = sin(uTime * aTwinkleSpeed * 2.7 + aTwinklePhase * 1.3);
-        vTwinkle = 1.0 - uTwinkleAmp * (0.5 + 0.3 * t1 + 0.2 * t2);
+        vTwinkle = 1.0 - (uTwinkleAmp * uTwinkleOn) * (0.5 + 0.3 * t1 + 0.2 * t2);
 
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         // Atténuation par la distance, équivalent sizeAttenuation.
@@ -1799,6 +1811,8 @@
   // groupe s'y compose par-dessus.
   let skySpeed = parseFloat(localStorage.getItem('vs-sky-rot'));
   if (!Number.isFinite(skySpeed)) skySpeed = 0;
+  // Twinkle binaire selon la rotation persistée (voir uniforms starMat)
+  starMat.uniforms.uTwinkleOn.value = skySpeed > 0 ? 1.0 : 0.0;
 
   const skyGroup = new THREE.Group();
   scene.add(skyGroup);
