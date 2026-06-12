@@ -672,39 +672,6 @@
       border-color: rgba(245,240,232,0.3);
     }
 
-    #rotation-toggle {
-      width: 36px;
-      height: 36px;
-      background: rgba(13,12,10,0.85);
-      border: 1px solid rgba(201,168,76,0.25);
-      color: rgba(201,168,76,0.6);
-      font-size: 0.75rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 100;
-      transition: all 0.2s;
-      border-radius: 2px;
-    }
-    #rotation-toggle:hover {
-      border-color: rgba(201,168,76,0.6);
-      color: #c9a84c;
-      background: rgba(201,168,76,0.08);
-    }
-    #rotation-toggle.paused {
-      border-color: rgba(201,168,76,0.4);
-      color: rgba(245,240,232,0.5);
-    }
-    #rotation-label {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.5rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--gold);
-      text-align: center;
-    }
-
     /* ── Réglages visuels (atmosphère / nuages / rotation) ───── */
     #visual-settings {
       margin-top: 16px;
@@ -767,7 +734,7 @@
 
     .ctrl-section-title {
       font-family: 'DM Mono', monospace;
-      font-size: 0.48rem;
+      font-size: 0.7rem;
       letter-spacing: 0.28em;
       text-transform: uppercase;
       color: rgba(201,168,76,0.5);
@@ -786,7 +753,7 @@
 
     .ctrl-row-label {
       font-family: 'DM Mono', monospace;
-      font-size: 0.48rem;
+      font-size: 0.6rem;
       letter-spacing: 0.18em;
       text-transform: uppercase;
       color: rgba(245,240,232,0.4);
@@ -1164,7 +1131,24 @@
   let atmPower      = parseFloat(localStorage.getItem('vs-atm'))           || 14.0;
   let cloudsSpeed   = parseFloat(localStorage.getItem('vs-clouds'))        || 0.3;
   let cloudsDensity = parseFloat(localStorage.getItem('vs-cloud-density')) || 0.5;
-  let rotSpeed      = parseFloat(localStorage.getItem('vs-rot'))           || 0.0008;
+  let rotSpeed      = parseFloat(localStorage.getItem('vs-rot'));
+  if (!Number.isFinite(rotSpeed)) rotSpeed = 0.0008;
+
+  // Migration de l'ancien bouton play/pause "ROTATION DE LA TERRE" :
+  // un état pause persisté (URL ?paused=1, sinon localStorage) devient
+  // vitesse 0 sur le slider VITESSE, puis l'ancien état est purgé.
+  {
+    const _legacyPausedURL = window._state.getParams().get('paused');
+    const _legacyPaused = _legacyPausedURL !== null
+      ? parseInt(_legacyPausedURL, 10) === 1
+      : parseInt(window._state.getLocal('rotation-paused'), 10) === 1;
+    if (_legacyPaused) {
+      rotSpeed = 0;
+      window._state.saveLocal('vs-rot', 0);
+    }
+    localStorage.removeItem('rotation-paused');
+    window._state.syncURL({ paused: null });
+  }
 
   // ── Earth — day / night shader ────────────────────────────
   // normalW uses mat3(modelMatrix) which is a pure rotation for our sphere
@@ -1636,13 +1620,37 @@
       }
     );
 
+    makeVsSlider('vs-stars-track', 'vs-stars-thumb', 'vs-stars-fill',
+      0, STAR_MAX, starCount, 'vs-stars',
+      (v) => {
+        starCount = v;
+        starGeo.setDrawRange(0, Math.round(v));
+      }
+    );
+
+    makeVsSlider('vs-milky-track', 'vs-milky-thumb', 'vs-milky-fill',
+      0.0, 6.0, milkyBright, 'vs-milky',
+      (v) => {
+        milkyBright = v;
+        milkyMat.color.setScalar(v);
+      }
+    );
+
+    // Vitesse de rotation du ciel : max 0.015 rad/s ≈ un tour en ~7 min
+    makeVsSlider('vs-sky-rot-track', 'vs-sky-rot-thumb', 'vs-sky-rot-fill',
+      0.0, 0.015, skySpeed, 'vs-sky-rot',
+      (v) => { skySpeed = v; }
+    );
+
     makeVsSlider('vs-clouds-track', 'vs-clouds-thumb', 'vs-clouds-fill',
       0.0, 1.0, cloudsSpeed, 'vs-clouds',
       (v) => { cloudsSpeed = v; }
     );
 
+    // Vitesse de rotation du globe : min 0 = immobile (remplace l'ancien
+    // bouton play/pause, même logique que le slider ROTATION de GALAXIE)
     makeVsSlider('vs-rot-track', 'vs-rot-thumb', 'vs-rot-fill',
-      0.0002, 0.002, rotSpeed, 'vs-rot',
+      0.0, 0.002, rotSpeed, 'vs-rot',
       (v) => { rotSpeed = v; }
     );
 
@@ -1662,30 +1670,161 @@
   });
 
   // ── Starfield ─────────────────────────────────────────────
-  const STAR_COUNT = 4500;
-  const sPos = new Float32Array(STAR_COUNT * 3);
+  // Géométrie générée UNE SEULE FOIS au maximum (STAR_MAX) ; le réglage
+  // "ÉTOILES" ne fait que varier geometry.drawRange — aucune réallocation.
+  // Les positions étant tirées i.i.d. uniformément sur la sphère, tout
+  // préfixe [0, n) reste spatialement homogène quel que soit n.
+  const STAR_MAX = 20000;
+  let starCount = parseFloat(localStorage.getItem('vs-stars'));
+  if (!Number.isFinite(starCount)) starCount = 4500;
+  starCount = Math.max(0, Math.min(STAR_MAX, starCount));
 
-  for (let i = 0; i < STAR_COUNT; i++) {
+  const sPos     = new Float32Array(STAR_MAX * 3);
+  const sSize    = new Float32Array(STAR_MAX);
+  const sColor   = new Float32Array(STAR_MAX * 3);
+  const sTwSpeed = new Float32Array(STAR_MAX);
+  const sTwPhase = new Float32Array(STAR_MAX);
+
+  for (let i = 0; i < STAR_MAX; i++) {
     const theta = Math.random() * Math.PI * 2;
     const phi   = Math.acos(2 * Math.random() - 1);
     const r     = 100 + Math.random() * 60;
     sPos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
     sPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
     sPos[i * 3 + 2] = r * Math.cos(phi);
+
+    // Tailles : pow(r, 3) → beaucoup de petites étoiles, rares grandes
+    sSize[i] = 0.5 + Math.pow(Math.random(), 3.0) * 2.5;
+
+    // Température de couleur : 3 familles pondérées (~25% bleu-blanc,
+    // ~55% blanc neutre, ~20% jaune-orangé), légère variation par canal
+    const fam = Math.random();
+    const base = fam < 0.25 ? [0.6, 0.75, 1.0]
+               : fam < 0.80 ? [1.0, 1.0,  1.0]
+               :              [1.0, 0.75, 0.5];
+    sColor[i * 3]     = Math.min(1, base[0] + (Math.random() - 0.5) * 0.08);
+    sColor[i * 3 + 1] = Math.min(1, base[1] + (Math.random() - 0.5) * 0.08);
+    sColor[i * 3 + 2] = Math.min(1, base[2] + (Math.random() - 0.5) * 0.08);
+
+    // ~60% des étoiles scintillent ; les autres ont une vitesse nulle
+    // (brillance figée à (1-amp) + amp·sin(phase) — diversité statique,
+    // pas de branche dans le shader)
+    sTwSpeed[i] = Math.random() < 0.60 ? 0.5 + Math.random() * 1.5 : 0.0;
+    sTwPhase[i] = Math.random() * Math.PI * 2;
   }
 
   const starGeo = new THREE.BufferGeometry();
-  starGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+  starGeo.setAttribute('position',      new THREE.BufferAttribute(sPos, 3));
+  starGeo.setAttribute('aSize',         new THREE.BufferAttribute(sSize, 1));
+  starGeo.setAttribute('aColor',        new THREE.BufferAttribute(sColor, 3));
+  starGeo.setAttribute('aTwinkleSpeed', new THREE.BufferAttribute(sTwSpeed, 1));
+  starGeo.setAttribute('aTwinklePhase', new THREE.BufferAttribute(sTwPhase, 1));
 
-  scene.add(new THREE.Points(starGeo,
-    new THREE.PointsMaterial({
-      color:           0xffffff,
-      size:            0.18,
-      transparent:     true,
-      opacity:         0.8,
-      sizeAttenuation: true,
-    })
-  ));
+  // Scintillement désynchronisé calculé au vertex (coût négligeable,
+  // identique mobile/desktop). uTime est alimenté par cloudClock dans la
+  // boucle render. Calibrage console : window._starsMat.uniforms.uTwinkleAmp
+  const starMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:       { value: 0.0 },
+      uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+      uTwinkleAmp: { value: 0.45 },
+    },
+    vertexShader: /* glsl */`
+      attribute float aSize;
+      attribute vec3  aColor;
+      attribute float aTwinkleSpeed;
+      attribute float aTwinklePhase;
+
+      uniform float uTime;
+      uniform float uPixelRatio;
+      uniform float uTwinkleAmp;
+
+      varying vec3  vColor;
+      varying float vTwinkle;
+
+      void main() {
+        vColor   = aColor;
+        vTwinkle = (1.0 - uTwinkleAmp)
+                 + uTwinkleAmp * sin(uTime * aTwinkleSpeed + aTwinklePhase);
+
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        // Atténuation par la distance, équivalent sizeAttenuation
+        gl_PointSize = aSize * uPixelRatio * (140.0 / -mvPosition.z);
+        gl_Position  = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      varying vec3  vColor;
+      varying float vTwinkle;
+
+      void main() {
+        // Point rond à falloff doux (centre brillant, bord fondu)
+        float d     = length(gl_PointCoord - vec2(0.5));
+        float alpha = smoothstep(0.5, 0.12, d) * 0.8;
+        gl_FragColor = vec4(vColor * vTwinkle, alpha);
+
+        // Pas de tonemapping_fragment ici : l'ACES compressait les hautes
+        // lumières au point d'écraser à la fois les écarts de teinte entre
+        // familles d'étoiles (0.75 vs 1.0 linéaire → 178 vs 185 affiché) et
+        // l'amplitude du scintillement. Points émissifs → sortie sRGB directe.
+        #include <encodings_fragment>
+      }
+    `,
+    transparent: true,
+    blending:    THREE.AdditiveBlending,
+    depthWrite:  false,
+  });
+  window._starsMat = starMat; // calibrage console
+
+  starGeo.setDrawRange(0, Math.round(starCount));
+
+  // ── skyGroup — fond de ciel (étoiles + Voie lactée) ───────
+  // Les deux couches partagent ce groupe pour tourner ensemble de façon
+  // cohérente (slider ROTATION, section GALAXIE). L'orientation propre de
+  // la skybox (rotation locale ci-dessous) est préservée : la rotation du
+  // groupe s'y compose par-dessus.
+  let skySpeed = parseFloat(localStorage.getItem('vs-sky-rot'));
+  if (!Number.isFinite(skySpeed)) skySpeed = 0;
+
+  const skyGroup = new THREE.Group();
+  scene.add(skyGroup);
+  skyGroup.add(new THREE.Points(starGeo, starMat));
+
+  // ── Skybox Voie lactée ────────────────────────────────────
+  // Sphère vue de l'intérieur, dans skyGroup comme le champ d'étoiles
+  // (indépendante de la rotation du globe). Rayon 400 : au-delà des
+  // étoiles procédurales (r ≤ 160), dans le far de la caméra (500).
+  const milkyTex = loader.load('./textures/' + (isMobile ? '2k' : '8k') + '_stars_milky_way.jpg');
+  milkyTex.encoding   = THREE.sRGBEncoding; // MeshBasicMaterial : décodage auto
+  milkyTex.anisotropy = renderer.capabilities.getMaxAnisotropy(); // netteté aux pôles
+
+  // Intensité pilotée par le slider LUMINOSITÉ (section GALAXIE).
+  // > 1 surexpose volontairement la texture ; l'ACES recompresse à l'écran.
+  let milkyBright = parseFloat(localStorage.getItem('vs-milky'));
+  if (!Number.isFinite(milkyBright)) milkyBright = 5.0;
+
+  const milkyMat = new THREE.MeshBasicMaterial({
+    map:        milkyTex,
+    side:       THREE.BackSide,
+    depthWrite: false,
+  });
+  milkyMat.color.setScalar(milkyBright);
+  window._milkyMat = milkyMat;
+
+  const milkyMesh = new THREE.Mesh(new THREE.SphereGeometry(400, 60, 40), milkyMat);
+  // Orientation : le cœur galactique est au centre de la texture (→ +X).
+  // Ordre ZYX = yaw (y) d'abord pour ramener le cœur vers la caméra, puis
+  // roll (z, axe caméra) pour incliner la bande en diagonale à l'écran.
+  // Avec y=1.2 rad / z=45°, le cœur tombe en haut à droite du globe, hors
+  // du halo atmosphérique mais dans le cadre. Rotation LOCALE : la rotation
+  // d'ensemble du ciel se fait sur skyGroup, pas ici.
+  // Calibrage console : window._milkySky.rotation.y (position du cœur)
+  milkyMesh.rotation.order = 'ZYX';
+  milkyMesh.rotation.y = 1.2;
+  milkyMesh.rotation.z = THREE.MathUtils.degToRad(45);
+  milkyMesh.renderOrder = -1; // rendue avant tout le reste
+  skyGroup.add(milkyMesh);
+  window._milkySky = milkyMesh; // calibrage console
 
   // ── Ambient light (subtle cool tint to match ink palette) ─
   scene.add(new THREE.AmbientLight(0x111122, 0.8));
@@ -1743,8 +1882,12 @@
   (function loop() {
     requestAnimationFrame(loop);
 
-    if (!dragging && !window._hoverPause && !window._userPausedRotation) {
-      // Auto-rotation (vitesse pilotée par #visual-settings)
+    // Un seul getDelta() par frame (un 2e appel rendrait ~0) — partagé
+    // entre nuages et rotation du ciel ; tient aussi elapsedTime à jour.
+    const dt = cloudClock.getDelta();
+
+    if (!dragging && !window._hoverPause) {
+      // Auto-rotation (vitesse pilotée par #visual-settings ; 0 = immobile)
       earth.rotation.y += rotSpeed;
 
       // Post-drag inertia
@@ -1758,14 +1901,23 @@
 
     if (isMobile) {
       // Mobile: rotate JPG layer relative to earth to simulate cloud drift
-      cloudsMesh.rotation.y += cloudClock.getDelta() * cloudsSpeed * 0.03;
+      cloudsMesh.rotation.y += dt * cloudsSpeed * 0.03;
     } else {
       // Desktop: sync sun direction and advance procedural noise time
       if (window._cloudsMat) window._cloudsMat.uniforms.uSun.value.copy(earthMat.uniforms.uSun.value);
-      cloudsMat.uniforms.uTime.value += cloudClock.getDelta() * cloudsSpeed;
+      cloudsMat.uniforms.uTime.value += dt * cloudsSpeed;
       // Même horloge côté Terre : l'ombre reste calée sur les nuages visibles
       earthMat.uniforms.uTime.value = cloudsMat.uniforms.uTime.value;
     }
+
+    // Rotation lente du fond de ciel (slider ROTATION, section GALAXIE) :
+    // étoiles + Voie lactée tournent ensemble autour de l'axe Y monde.
+    skyGroup.rotation.y += skySpeed * dt;
+
+    // Scintillement étoiles : elapsedTime est tenu à jour par le getDelta()
+    // en tête de boucle — lecture passive, indépendante de la vitesse des
+    // nuages.
+    starMat.uniforms.uTime.value = cloudClock.elapsedTime;
 
     renderer.render(scene, camera);
   })();
@@ -1819,10 +1971,6 @@
     <div class="ctrl-section">
       <div class="ctrl-section-title">GLOBE</div>
       <div class="ctrl-row">
-        <button id="rotation-toggle" title="Pause rotation"><span id="rotation-icon">⏸</span></button>
-        <span class="ctrl-row-label">ROTATION DE LA TERRE</span>
-      </div>
-      <div class="ctrl-row">
         <span class="ctrl-row-label">ATMOSPHÈRE</span>
         <div class="vs-track" id="vs-atm-track">
           <div class="vs-fill" id="vs-atm-fill"></div>
@@ -1834,6 +1982,31 @@
         <div class="vs-track" id="vs-rot-track">
           <div class="vs-fill" id="vs-rot-fill"></div>
           <div class="vs-thumb" id="vs-rot-thumb"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-section-title">GALAXIE</div>
+      <div class="ctrl-row">
+        <span class="ctrl-row-label">ÉTOILES</span>
+        <div class="vs-track" id="vs-stars-track">
+          <div class="vs-fill" id="vs-stars-fill"></div>
+          <div class="vs-thumb" id="vs-stars-thumb"></div>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-row-label">LUMINOSITÉ</span>
+        <div class="vs-track" id="vs-milky-track">
+          <div class="vs-fill" id="vs-milky-fill"></div>
+          <div class="vs-thumb" id="vs-milky-thumb"></div>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-row-label">ROTATION</span>
+        <div class="vs-track" id="vs-sky-rot-track">
+          <div class="vs-fill" id="vs-sky-rot-fill"></div>
+          <div class="vs-thumb" id="vs-sky-rot-thumb"></div>
         </div>
       </div>
     </div>
@@ -1877,45 +2050,6 @@
     </div><!-- /.mobile-panel-scroll -->
     <button class="mobile-validate-btn" onclick="closeMobilePanel('settings')">— VALIDER —</button>
   </div>
-
-  <script>
-  (function () {
-    let userPausedRotation = false;
-    const rotationToggle = document.getElementById('rotation-toggle');
-    const rotationIcon   = document.getElementById('rotation-icon');
-
-    rotationToggle.addEventListener('click', () => {
-      userPausedRotation = !userPausedRotation;
-
-      if (userPausedRotation) {
-        rotationIcon.textContent = '▶';
-        rotationToggle.classList.add('paused');
-        rotationToggle.title = 'Reprendre rotation';
-      } else {
-        rotationIcon.textContent = '⏸';
-        rotationToggle.classList.remove('paused');
-        rotationToggle.title = 'Pause rotation';
-      }
-
-      window._userPausedRotation = userPausedRotation;
-
-      const paused = window._userPausedRotation ? 1 : 0;
-      window._state.saveLocal('rotation-paused', paused);
-      window._state.syncURL({ paused: paused === 0 ? null : 1 });
-    });
-
-    // Restauration de l'état pause persisté (URL > localStorage > défaut)
-    const _pauseParams = window._state.getParams();
-    let initialPaused;
-    if (_pauseParams.has('paused')) {
-      initialPaused = parseInt(_pauseParams.get('paused'), 10) === 1;
-    } else {
-      const storedPaused = window._state.getLocal('rotation-paused');
-      initialPaused = storedPaused !== null && parseInt(storedPaused, 10) === 1;
-    }
-    if (initialPaused) rotationToggle.click();
-  })();
-  </script>
 
   <!-- ── Timeline ─────────────────────────────────────────── -->
   <div id="timeline">
@@ -2214,7 +2348,7 @@
     }
     applyBeta(initialAngleDeg !== null && !isNaN(initialAngleDeg)
       ? initialAngleDeg * Math.PI / 180
-      : 0, true); // position initiale : soleil en haut (par défaut) — persiste pour rester cohérent avec timeline/paused/filters
+      : 0, true); // position initiale : soleil en haut (par défaut) — persiste pour rester cohérent avec timeline/filters
   })();
   </script>
 
