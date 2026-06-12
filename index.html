@@ -1119,10 +1119,17 @@
   const loader = new THREE.TextureLoader(manager);
   loader.crossOrigin = 'anonymous';
 
-  const dayTex    = loader.load('./textures/earth_daymap.jpg');
-  const nightTex  = loader.load('./textures/earth_nightmap.jpg');
-  const normalTex   = loader.load('./textures/earth_normal_map.jpg');
-  const specularTex = loader.load('./textures/earth_specular_map.jpg');
+  // Détection mobile unique (réutilisée par les nuages JPG et la Voie lactée 2k)
+  const isMobile = /Mobi|Android|iPhone|iPad|Touch/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+  // Textures Terre : 2K sur mobile (les GPU mobiles plafonnent souvent à 4096px
+  // et le redimensionnement des 8K par Three.js pique la RAM au décodage), 8K sinon.
+  const texPath = (name) => './textures/' + (isMobile ? '2k_' : '') + 'earth_' + name + '.jpg';
+
+  const dayTex    = loader.load(texPath('daymap'));
+  const nightTex  = loader.load(texPath('nightmap'));
+  const normalTex   = loader.load(texPath('normal_map'));
+  const specularTex = loader.load(texPath('specular_map'));
 
   // ── Sun direction (world space, fixed) ────────────────────
   const SUN_DIR = new THREE.Vector3(-1.0, 0.3, 0.5).normalize();
@@ -1392,7 +1399,7 @@
   window._earth = earth;
 
   // ── Clouds — procedural fBm shader layer, sun-reactive ────
-  const isMobile = /Mobi|Android|iPhone|iPad|Touch/i.test(navigator.userAgent) || window.innerWidth < 768;
+  // (isMobile défini plus haut, avant le chargement des textures Terre)
   // Mobile : nuages JPG sans fBm → pas d'ombres portées (branche shader coupée)
   if (isMobile) earthMat.uniforms.uCloudShadowStrength.value = 0.0;
   const cloudClock = new THREE.Clock();
@@ -1513,8 +1520,8 @@
     depthWrite: false,
     side: THREE.FrontSide
   }); } else {
-    // Mobile: JPG texture fallback for performance
-    const cloudsTex = loader.load('./textures/earth_clouds.jpg');
+    // Mobile: JPG texture fallback for performance (texPath → 2k_earth_clouds.jpg)
+    const cloudsTex = loader.load(texPath('clouds'));
     cloudsTex.encoding = THREE.sRGBEncoding; // MeshBasicMaterial : décodage auto OK
     cloudsMat = new THREE.MeshBasicMaterial({
       map:         cloudsTex,
