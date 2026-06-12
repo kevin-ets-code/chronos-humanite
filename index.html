@@ -1674,7 +1674,7 @@
   // "ÉTOILES" ne fait que varier geometry.drawRange — aucune réallocation.
   // Les positions étant tirées i.i.d. uniformément sur la sphère, tout
   // préfixe [0, n) reste spatialement homogène quel que soit n.
-  const STAR_MAX = 20000;
+  const STAR_MAX = 100000;
   let starCount = parseFloat(localStorage.getItem('vs-stars'));
   if (!Number.isFinite(starCount)) starCount = 4500;
   starCount = Math.max(0, Math.min(STAR_MAX, starCount));
