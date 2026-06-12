@@ -1184,6 +1184,11 @@
       uTime:                { value: 0.0 },
       uCloudDensity:        { value: cloudsDensity },
       uCloudShadowStrength: { value: 0.35 },
+      // Terminateur crépusculaire : teinte chaude de la lumière rasante.
+      // Calibrage console : window._earthMat.uniforms.uTwilight*.value
+      uTwilightWidth:    { value: 0.3 },
+      uTwilightColor:    { value: new THREE.Vector3(1.0, 0.35, 0.1) },
+      uTwilightStrength: { value: 0.85 },
     },
     vertexShader: /* glsl */`
       uniform vec3 uSun;
@@ -1234,6 +1239,9 @@
       uniform float     uTime;
       uniform float     uCloudDensity;
       uniform float     uCloudShadowStrength;
+      uniform float     uTwilightWidth;
+      uniform vec3      uTwilightColor;
+      uniform float     uTwilightStrength;
 
       varying vec2 vUv;
       varying vec3 vNormalW;
@@ -1318,6 +1326,24 @@
         // uNormalMap / uSpecularMap sont des maps techniques : restent linéaires.
         day.rgb   = pow(day.rgb,   vec3(2.2));
         night.rgb = pow(night.rgb, vec3(2.2));
+
+        // --- Terminateur crépusculaire ---
+        // Teinte chaude de la lumière rasante : pleine dès cosA <= 0 (la nuit
+        // incluse — day.rgb s'éteint avec blend, la teinte meurt avec la
+        // lumière, pas de coupure artificielle côté nuit donc pas de gap
+        // bleu), nulle en plein jour au-delà de uTwilightWidth.
+        float tw = 1.0 - smoothstep(0.0, uTwilightWidth, cosA);
+        // pow > 1 : fondu plus progressif au bord jour de la bande
+        tw = pow(tw, 1.5);
+        // Teinte normalisée à luminance constante (Rec.601) : la bande change
+        // de couleur, pas de luminosité — évite l'anneau plus lumineux que le
+        // jour adjacent qu'introduisait un boost > 1. Teintage multiplicatif
+        // en linéaire (avant tonemapping), appliqué AVANT l'ombre des nuages :
+        // lumière teintée puis occultée — l'ordre est de toute façon
+        // commutatif, les deux étant multiplicatifs sur day.rgb.
+        // uNight (lumières de villes) n'est volontairement pas teinté.
+        vec3 twi = uTwilightColor / max(dot(uTwilightColor, vec3(0.299, 0.587, 0.114)), 0.001);
+        day.rgb *= mix(vec3(1.0), twi, tw * uTwilightStrength);
 
         // --- Ombres portées des nuages (jour uniquement) ---
         // Branche uniforme : court-circuitée sur mobile (strength = 0).
