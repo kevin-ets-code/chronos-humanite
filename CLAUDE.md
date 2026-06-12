@@ -25,7 +25,8 @@ There is no build step, bundler, linter, or test suite — everything runs direc
 
 ## Structure
 
-- `index.html` — the entire app: HTML, CSS (`<style>`), and all JS (`<script>` blocks). ~3250 lines.
+- `index.html` — the entire app: HTML, CSS (`<style>`), and all JS (`<script>` blocks). ~3380 lines.
+- `js/vendor/` — scripts three.js examples r128 du bloom (`CopyShader`, `LuminosityHighPassShader`, `EffectComposer`, `ShaderPass`, `RenderPass`, `UnrealBloomPass`), embarqués depuis le tag r128 du repo three.js car cdnjs ne sert pas `examples/js` en r128 (404, même cas qu'earcut). Voir la section "Bloom".
 - `data/*.json` — event data, split by historical era (`01-prehistoire.json` … `13-xxie.json`), plus `categories.json`, `eras.json` and `territories.json` (GeoJSON snapshots des empires, overlay EMPIRES).
 - `data/timeline-config.json` — fenêtre temporelle par zone historique (`windowZones`, chacune avec un `halfWindow` qui définit la largeur de la fenêtre visible autour de l'année centrale).
 - `textures/` — Earth day/night/normal/specular/clouds JPGs (+ variantes `2k_*`), et skybox Voie lactée `8k_stars_milky_way.jpg` (desktop) / `2k_stars_milky_way.jpg` (mobile).
@@ -35,10 +36,10 @@ There is no build step, bundler, linter, or test suite — everything runs direc
 
 The page wires together seven separate script blocks (in source order), each owning one concern and communicating only through `window._*` globals (see below). When changing one, check whether it reads/writes a global another block depends on.
 
-1. **Globe renderer** (~`L1032-1931`): the largest block. Persistence helper (`window._state` — localStorage + URL query sync), Three.js renderer (ACES Filmic + sRGB, see "Pipeline couleur"), scene/camera, textures, Earth mesh with custom GLSL day/night shader (`earthMat`), cloud layer (fBm shader desktop / JPG mobile), atmospheric halo (**one** BackSide shader sphere), starfield + Milky Way skybox in a shared `skyGroup`, the `#visual-settings` slider factory (`makeVsSlider`), mouse/touch drag with inertia, and the render loop (`(function loop() {...})`). Globe auto-rotation speed is `rotSpeed` (slider VITESSE, section GLOBE; min = 0 = immobile — the old play/pause "ROTATION DE LA TERRE" button was removed, and a legacy persisted paused state is migrated to `vs-rot = 0` then purged).
+1. **Globe renderer** (~`L1032-1931`): the largest block. Persistence helper (`window._state` — localStorage + URL query sync), Three.js renderer (ACES Filmic + sRGB, see "Pipeline couleur"), scene/camera, textures, Earth mesh with custom GLSL day/night shader (`earthMat`), cloud layer (fBm shader desktop / JPG mobile), atmospheric halo (**one** BackSide shader sphere), starfield + Milky Way skybox in a shared `skyGroup`, the `#visual-settings` slider factory (`makeVsSlider`), mouse/touch drag with inertia, the bloom desktop (voir section "Bloom"), and the render loop (`(function loop() {...})` — `composer.render()` dès que le bloom est initialisé, sinon rendu direct). Globe auto-rotation speed is `rotSpeed` (slider VITESSE, section GLOBE; min = 0 = immobile — the old play/pause "ROTATION DE LA TERRE" button was removed, and a legacy persisted paused state is migrated to `vs-rot = 0` then purged).
 2. **Timeline slider** (~`L2065-2261`): drives a single draggable thumb (`centerVal`, range 0-1000) on `#tl-track`, converts slider position to a year via breakpoints (`BP` / `sliderToYear`), updates the displayed year/era label, pushes `uNightLights` into `earthMat`, and calls `updateTerritories()`. The visible time window around the centered year is data-driven: `getHalfWindow(year)` looks up the matching zone in `data/timeline-config.json` (`windowZones`, each with a `halfWindow`) and returns its half-width; `window.currentYearStart`/`window.currentYearEnd` are then computed as `centerYear ± halfWindow` and read by the sprites block to drive event visibility. Persisted as `'tl-slider-center'` (localStorage) and `?t=<year>` (URL); the older `'tl-slider-left'`, `'tl-slider-right'`, and `'tl-duration-index'` keys are actively cleared on load.
 3. **Sun control** (~`L2263-2353`): drag handle UI (`#sun-control` / `#sun-handle`) on a full 360° ring; recomputes the sun angle β and writes `(sin β, 0.3, cos β)` to `earthMat.uniforms.uSun`. Persisted as `'sun-angle'` (degrees) and `?sun=` (URL).
-4. **Sprites + hover + filters** (~`L2355-2856`): loads all JSON data (`loadData`/`ERA_FILES`, including `territories.json`), builds one `THREE.Sprite` per event placed via `latLngToVec3`, fades sprite opacity in/out based on the current year (`getOpacity`/`smoothstep`), handles hover tooltips and HTML hit-zones overlaid on the canvas (`#sprite-overlay`), spreads overlapping events with `applyClusterOffsets`, and builds the category filter chips (`#filters-list`, persisted as `'active-filters'` / `?filters=`).
+4. **Sprites + hover + filters** (~`L2355-2856`): loads all JSON data (`loadData`/`ERA_FILES`, including `territories.json`), builds one `THREE.Sprite` per event placed via `latLngToVec3`, fades sprite opacity in/out based on the current year (`getOpacity`/`smoothstep`), handles hover tooltips and HTML hit-zones overlaid on the canvas (`#sprite-overlay`), spreads overlapping events with `applyClusterOffsets`, and builds the category filter chips (`#filters-list`, persisted as `'active-filters'` / `?filters=`). Rendu des sprites : `SpriteMaterial` avec `toneMapped = false` (hors ACES, comme le halo atmosphère — sinon le tonemapping désature les couleurs de catégories vers le blanc) et texture canvas en `encoding = THREE.sRGBEncoding` obligatoire (sinon double éclaircissement avec `outputEncoding`). Sur desktop, `applySpriteDim(0.6)` atténue `material.color` par défaut pour rester sous le threshold du bloom (0.85) ; setter console `window._spriteDim(valeur)`, ré-applicable à chaud (couleur de base mémorisée, jamais écrasée).
 5. **Side panel + territoires** (~`L2886-3095`): opens `#side-panel` with an event's details (`openPanel`/`closePanel`); then the territories overlay — empire polygons drawn into a 4096×2048 canvas texture mapped on a sphere (`terrSphere`, r=1.004, child of `_earth`), redrawn by `drawTerritoriesCanvas(year)` / `window.updateTerritories`, toggled by the EMPIRES switch (section AFFICHAGE, persisted `'terr-visible'` / `?empires=`).
 6. **Territory hover tooltip** (~`L3106-3194`): raycasts the Earth mesh, converts hit point to lat/lng, point-in-polygon against the active territory snapshots, shows `#terr-tooltip`.
 7. **Mobile panels** (~`L3196-3252`): `toggleMobilePanel`/`closeMobilePanel` turn `#controls-left` and `#filters` into fullscreen slide-up panels under 768px.
@@ -56,6 +57,8 @@ Because each block is an isolated IIFE (or top-level script), they share state e
 | `_atmosphereMat` | renderer | halo shader material (`atmMultiplier` driven by the ATMOSPHÈRE slider) |
 | `_starsMat` | renderer | starfield ShaderMaterial (calibrage console : `uTwinkleAmp`) |
 | `_milkyMat`, `_milkySky` | renderer | Milky Way skybox material (brightness via `color.setScalar`) and mesh (`rotation.y` = position du cœur galactique) |
+| `_bloom` | renderer (`initBloom`) | `UnrealBloomPass` du composer desktop (calibrage console : `strength` / `radius` / `threshold`) |
+| `_spriteDim` | sprites block | setter d'atténuation des sprites (`_spriteDim(0.6)` desktop par défaut, protection anti-bloom) |
 | `_hoverPause` | sprites block | true while hovering a sprite — pauses auto-rotation |
 | `_categories`, `_eras`, `_territories` | sprites block (`loadData`) | parsed `categories.json` / `eras.json` / `territories.json` features, read by timeline & panel/territories blocks |
 | `currentYearStart`, `currentYearEnd` | timeline | visible time window, read by sprites + territories |
@@ -70,7 +73,18 @@ Le renderer est configuré avec `toneMapping = ACESFilmicToneMapping` (`toneMapp
 - **ShaderMaterial custom (Terre, nuages)** : doivent terminer leur fragment shader par `#include <tonemapping_fragment>` + `#include <encodings_fragment>` pour passer dans le pipeline. L'auto-décodage `texture.encoding` ne s'applique pas aux samplers de ShaderMaterial : `uDay`/`uNight` sont décodés manuellement (`pow(rgb, 2.2)`) dans le shader ; `uNormalMap`/`uSpecularMap` sont des maps techniques et restent linéaires.
 - **Halo atmosphérique** : volontairement HORS pipeline ACES (aucun include) — glow additif dont le rendu calibré serait écrasé par le tonemapping.
 - **Étoiles** : `#include <encodings_fragment>` seulement, PAS de tonemapping — l'ACES compressait les hautes lumières au point d'écraser les écarts de teinte entre familles et l'amplitude du scintillement.
+- **Sprites événements** : `toneMapped = false` (hors ACES, comme le halo — le tonemapping désaturait les couleurs de catégories vers le blanc) + texture canvas en `encoding = THREE.sRGBEncoding` (le canvas 2D est authoré en sRGB ; sans cet encoding, échantillonné comme linéaire puis ré-encodé en sRGB → double éclaircissement).
 - **MeshBasicMaterial (nuages mobile, Voie lactée)** : décodage auto via `texture.encoding = sRGBEncoding` ; la luminosité Voie lactée > 1 surexpose volontairement, l'ACES recompresse.
+
+## Bloom (desktop uniquement)
+
+`EffectComposer` + `UnrealBloomPass` (~`L1916-1970`), activé sur desktop uniquement (même détection `isMobile` que le reste) ; sur mobile — et pendant les premières frames le temps du chargement des scripts — `composer` reste `null` et la boucle garde le rendu direct.
+
+- **Scripts** : les `examples/js` de r128 sont absents de cdnjs (404, même cas qu'earcut) → embarqués dans `js/vendor/` depuis le tag r128 du repo three.js, chargés dynamiquement avec `async = false` (exécution dans l'ordre d'insertion : `UnrealBloomPass` étend `THREE.Pass` défini par `EffectComposer`, etc.) ; `initBloom()` ne s'exécute que quand les 6 scripts sont chargés.
+- **Paramètres** : `strength 0.35`, `radius 0.4`, `threshold 0.85`.
+- **Anti double tone mapping** : les render targets du composer (`renderTarget1`/`renderTarget2`) sont en `sRGBEncoding` — en r128 l'encoding de sortie d'un matériau suit la texture du render target courant, la scène s'encode donc dans le RT exactement comme sur le canvas (ACES + sRGB pour Terre/nuages, halo/étoiles/sprites hors ACES inchangés). Et `bloom.basic.toneMapped = false` sur le matériau de copie écran du pass : le readBuffer est déjà tonemappé, décodage sRGB + réencodage sRGB = identité.
+- Le resize handler appelle aussi `composer.setSize`.
+- Console : `window._bloom` (`strength` / `radius` / `threshold`).
 
 ## GLSL shaders
 
@@ -94,7 +108,7 @@ Desktop : ShaderMaterial procédural — fBm 6 octaves avec double domain warpin
 
 ## Étoiles & Voie lactée (`skyGroup`)
 
-- **Starfield** (~`L1672-1779`) : géométrie générée UNE SEULE FOIS à `STAR_MAX = 100000` ; le slider ÉTOILES ne fait que varier `geometry.drawRange` (aucune réallocation — les positions étant i.i.d. uniformes, tout préfixe reste homogène). Défaut 4500. ShaderMaterial points : tailles `pow(r,3)` (rares grandes étoiles), 3 familles de couleurs (~25% bleu-blanc, ~55% blanc neutre, ~20% jaune-orangé), scintillement désynchronisé au vertex (~60% des étoiles, `uTwinkleAmp` 0.45, `uTime` alimenté par `cloudClock`), blending additif.
+- **Starfield** (~`L1685-1830`) : géométrie générée UNE SEULE FOIS à `STAR_MAX = 100000` ; le slider ÉTOILES ne fait que varier `geometry.drawRange` (aucune réallocation — les positions étant i.i.d. uniformes, tout préfixe reste homogène). Défaut 4500. ShaderMaterial points : tailles `pow(r,3)` (rares grandes étoiles), clamp `gl_PointSize` à 2.5 px + profil gaussien au fragment (anti-shimmer sub-pixel), 3 familles de couleurs (~25% bleu-blanc, ~55% blanc neutre, ~20% jaune-orangé), blending additif. **Scintillement** : désynchronisé au vertex, réservé aux étoiles au-dessus de la taille médiane (~40% d'entre elles → ~20% du total), onde composite lente ~10–25 s par étoile (`uTwinkleAmp` 0.25, `uTime` alimenté par `cloudClock`). Il est **binaire** via `uTwinkleOn`, piloté par le slider ROTATION du ciel : rotation = 0 → `0.0` (étoiles parfaitement figées) ; rotation > 0 → `1.0` (même lueur lente constante, amplitude et vitesse indépendantes de la vitesse de rotation). Initialisé avec la valeur persistée de `skySpeed`.
 - **Skybox Voie lactée** (~`L1793-1827`) : sphère `BackSide` rayon 400 (au-delà des étoiles r ≤ 160, dans le far caméra 500), `renderOrder = -1`, texture `8k_stars_milky_way.jpg` desktop / `2k` mobile, anisotropy max. Orientation locale (ordre ZYX, y=1.2, z=45°) qui place le cœur galactique en haut à droite ; luminosité via `milkyMat.color.setScalar` (slider LUMINOSITÉ, défaut 5.0).
 - Les deux couches vivent dans un `skyGroup` commun, indépendant du globe, dont `rotation.y` avance de `skySpeed·dt` dans la boucle (slider ROTATION, max 0.015 rad/s ≈ un tour en ~7 min). La rotation du groupe se compose par-dessus l'orientation locale de la skybox.
 
@@ -119,7 +133,7 @@ Typo du panneau : `.ctrl-section-title` 0.7rem, `.ctrl-row-label` 0.6rem — ide
 
 ### Calibrage console
 
-Objets exposés sur `window` pour ajuster les valeurs en live : `_renderer` (`toneMappingExposure`), `_earthMat` (`uCloudShadowStrength`, `uTwilight*`, `uGlintStrength`…), `_atmosphereMat`, `_cloudsMat`/`_cloudsMesh`, `_starsMat` (`uTwinkleAmp`), `_milkyMat`, `_milkySky` (`rotation.y`).
+Objets exposés sur `window` pour ajuster les valeurs en live : `_renderer` (`toneMappingExposure`), `_earthMat` (`uCloudShadowStrength`, `uTwilight*`, `uGlintStrength`…), `_atmosphereMat`, `_cloudsMat`/`_cloudsMesh`, `_starsMat` (`uTwinkleAmp`, `uTwinkleOn`), `_milkyMat`, `_milkySky` (`rotation.y`), `_bloom` (`strength`/`radius`/`threshold`), `_spriteDim(valeur)`.
 
 ## Data — adding an event
 
@@ -166,8 +180,13 @@ Event fields:
 
 Fonts: Playfair Display (titles), DM Mono, Cormorant Garamond (body/labels).
 
+## Règles méthodologiques
+
+- **JAMAIS de validation visuelle via Playwright ou captures headless** — faux positifs systématiques. Seule la validation visuelle de Kevin sur appareil réel fait foi.
+- **Tout élément lumineux hors globe** (sprites, halo, UI 3D…) doit être évalué vis-à-vis du pipeline ACES/sRGB : `toneMapped = false` et/ou `texture.encoding = sRGBEncoding` selon le cas (voir "Pipeline couleur").
+
 ## Notes
 
-- `index.html` is loaded via Three.js r128 from cdnjs — there is no local copy to update.
+- The core Three.js r128 is loaded from cdnjs — there is no local copy to update. Exception : les scripts `examples/js` du bloom, absents de cdnjs en r128, vivent dans `js/vendor/` (voir "Bloom").
 - The slider's year mapping is non-linear (`BP` breakpoints in the timeline block) to give more resolution to recent history; `sliderToYear` is duplicated in both the timeline and sprites blocks — keep them in sync if you change the breakpoints.
-- Mobile (`isMobile`, UA + largeur < 768px) dégrade plusieurs effets : nuages JPG au lieu du fBm, ombres de nuages coupées (`uCloudShadowStrength = 0`), Voie lactée 2k au lieu de 8k.
+- Mobile (`isMobile`, UA + largeur < 768px) dégrade plusieurs effets : nuages JPG au lieu du fBm, ombres de nuages coupées (`uCloudShadowStrength = 0`), Voie lactée 2k au lieu de 8k, pas de bloom (rendu direct, sprites non atténués — `applySpriteDim` n'est pas appelé).
