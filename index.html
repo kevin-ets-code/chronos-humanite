@@ -1184,6 +1184,10 @@
       // (exposants/poids des lobes = constantes dans le shader).
       // Calibrage console : window._earthMat.uniforms.uGlintStrength.value
       uGlintStrength: { value: 1.0 },
+      // Lift gamma des océans (Blue Marble bathymetry trop sombre après le
+      // decode pow 2.2 + ACES) : < 1 éclaircit, 1 = neutre.
+      // Calibrage console : window._earthMat.uniforms.uOceanGamma.value
+      uOceanGamma: { value: 0.85 },
     },
     vertexShader: /* glsl */`
       uniform vec3 uSun;
@@ -1238,6 +1242,7 @@
       uniform vec3      uTwilightColor;
       uniform float     uTwilightStrength;
       uniform float     uGlintStrength;
+      uniform float     uOceanGamma;
 
       varying vec2 vUv;
       varying vec3 vNormalW;
@@ -1323,6 +1328,16 @@
         day.rgb   = pow(day.rgb,   vec3(2.2));
         night.rgb = pow(night.rgb, vec3(2.2));
 
+        // --- Lift gamma des océans ---
+        // Éclaircit les océans (Blue Marble bathymetry trop sombre après le
+        // decode), masqué par la specular map. Appliqué AVANT terminateur,
+        // ombres et mix jour/nuit : crépuscule et nuit restent cohérents.
+        // specMask est hissé ici et réutilisé par le sun glint plus bas
+        // (même valeur, pas de second échantillonnage).
+        float specMask  = texture2D(uSpecularMap, vUv).r;
+        float oceanMask = clamp(specMask, 0.0, 1.0);
+        day.rgb = mix(day.rgb, pow(day.rgb, vec3(uOceanGamma)), oceanMask);
+
         // --- Terminateur crépusculaire ---
         // Teinte chaude de la lumière rasante : pleine dès cosA <= 0 (la nuit
         // incluse — day.rgb s'éteint avec blend, la teinte meurt avec la
@@ -1366,7 +1381,6 @@
         // trois cohérents. Masqué par la specular map (océans uniquement)
         // et max(cosA, 0) (pas de glint côté nuit). Ajouté à day.rgb en
         // linéaire avant l'ACES, qui gère le rolloff des hautes lumières.
-        float specMask = texture2D(uSpecularMap, vUv).r;
         vec3  H        = normalize(uSun + normalize(vViewDir));
         float dotNH    = max(dot(N, H), 0.0);
         // Deux lobes calibrés visuellement : voile large doux (exp 100,
