@@ -2599,6 +2599,13 @@
       const texture = new THREE.CanvasTexture(canvas);
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
+      // Le canvas 2D est authoré en sRGB : sans cet encoding, le renderer
+      // l'échantillonne comme linéaire puis ré-encode en sRGB à la sortie
+      // (outputEncoding) → double éclaircissement, couleurs délavées vers
+      // le blanc. Déclaré avant le premier upload : le shader sprite
+      // décode à l'échantillonnage et la sortie sRGB redevient neutre.
+      // (Même problème que uDay/uNight, résolu là-bas par pow 2.2 manuel.)
+      texture.encoding = THREE.sRGBEncoding;
       return texture;
     }
 
@@ -2737,6 +2744,11 @@
           opacity:     1.0,
           depthWrite:  false,
           blending:    THREE.AdditiveBlending,
+          // Hors pipeline ACES (comme le halo atmosphère) : le tonemapping
+          // désaturait les couleurs de catégories vers le blanc à haute
+          // intensité. Le facteur _spriteDim (0.6 desktop) reste la
+          // protection contre le bloom. Hérité par les clones par événement.
+          toneMapped:  false,
         });
       });
 
@@ -2762,6 +2774,22 @@
         hitzones.push(div);
       });
     }
+
+    // ── Atténuation desktop des sprites (anti-bloom) ──────────
+    // Le bloom desktop (UnrealBloomPass, threshold 0.85) fait rayonner
+    // les sprites additifs en boules floues : un facteur < 1 sur
+    // material.color ramène leur luminance sous le seuil. La couleur de
+    // base est mémorisée au premier passage puis multipliée (jamais
+    // écrasée) — ré-applicable à chaud. Calibrage console :
+    // window._spriteDim(0.75)
+    function applySpriteDim(factor) {
+      sprites.forEach(s => {
+        const m = s.material;
+        if (!m.userData._baseColor) m.userData._baseColor = m.color.clone();
+        m.color.copy(m.userData._baseColor).multiplyScalar(factor);
+      });
+    }
+    window._spriteDim = applySpriteDim;
 
     function applyFilter() {
       allEvents.forEach((ev, i) => {
@@ -2925,6 +2953,9 @@
       }
 
       buildSprites(allEvents);
+      // Desktop uniquement (isMobile : const top-level du bloc renderer,
+      // même détection UA que le bloom) — rendu mobile inchangé.
+      if (!isMobile) applySpriteDim(0.6);
       restoreFilters();
 
       currentYearStart = window.currentYearStart;
