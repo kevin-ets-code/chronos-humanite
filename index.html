@@ -1189,6 +1189,10 @@
       uTwilightWidth:    { value: 0.3 },
       uTwilightColor:    { value: new THREE.Vector3(1.0, 0.35, 0.1) },
       uTwilightStrength: { value: 0.85 },
+      // Sun glint océanique : multiplicateur global des deux lobes
+      // (exposants/poids des lobes = constantes dans le shader).
+      // Calibrage console : window._earthMat.uniforms.uGlintStrength.value
+      uGlintStrength: { value: 1.0 },
     },
     vertexShader: /* glsl */`
       uniform vec3 uSun;
@@ -1242,6 +1246,7 @@
       uniform float     uTwilightWidth;
       uniform vec3      uTwilightColor;
       uniform float     uTwilightStrength;
+      uniform float     uGlintStrength;
 
       varying vec2 vUv;
       varying vec3 vNormalW;
@@ -1347,6 +1352,9 @@
 
         // --- Ombres portées des nuages (jour uniquement) ---
         // Branche uniforme : court-circuitée sur mobile (strength = 0).
+        // cloudShadow est hissé hors de la branche : réutilisé par le sun
+        // glint plus bas (même valeur, pas de second cloudCoverAt).
+        float cloudShadow = 0.0;
         if (uCloudShadowStrength > 0.0) {
           vec3  nL    = normalize(vNormalL);
           vec3  sunL  = normalize(vSunL);
@@ -1357,20 +1365,33 @@
           // Gap réel terre/nuages = 0.003, exagéré ici pour la lisibilité.
           vec3 sunT   = sunL - nL * sunUp;
           vec3 nCloud = normalize(nL + sunT * (0.015 / max(sunUp, 0.25)));
-          float cloudShadow = cloudCoverAt(nCloud);
+          cloudShadow = cloudCoverAt(nCloud);
           // blend = éclairage jour existant : pas d'ombre la nuit ni au terminateur
           day.rgb *= 1.0 - cloudShadow * uCloudShadowStrength * blend;
         }
 
-        // --- Specular (ocean glint) ---
+        // --- Sun glint océanique (Blinn-Phong deux lobes) ---
+        // Vecteurs en repère monde — N, uSun et vViewDir y sont déjà tous
+        // trois cohérents. Masqué par la specular map (océans uniquement)
+        // et max(cosA, 0) (pas de glint côté nuit). Ajouté à day.rgb en
+        // linéaire avant l'ACES, qui gère le rolloff des hautes lumières.
         float specMask = texture2D(uSpecularMap, vUv).r;
-        vec3  halfVec  = normalize(uSun + vViewDir);
-        float spec     = pow(max(dot(N, halfVec), 0.0), 48.0) * specMask * 0.5;
-        vec3  specColor = uSunColor * spec * max(cosA, 0.0);
+        vec3  H        = normalize(uSun + normalize(vViewDir));
+        float dotNH    = max(dot(N, H), 0.0);
+        // Deux lobes calibrés visuellement : voile large doux (exp 100,
+        // poids 0.2) + cœur serré brillant (exp 600, poids 0.4).
+        float glintWide = pow(dotNH, 100.0) * 0.2;
+        float glintCore = pow(dotNH, 600.0) * 0.4;
+        float glint     = (glintWide + glintCore) * specMask * max(cosA, 0.0);
+        // Atténuation nuages durcie : le fBm 3 octaves des ombres
+        // sous-estime la densité visible — boost 1.5 pour compenser,
+        // pow 3.0 pour éteindre le glint dès couverture moyenne.
+        glint *= pow(clamp(1.0 - cloudShadow * 1.5, 0.0, 1.0), 3.0);
+        day.rgb += uSunColor * glint * uGlintStrength;
 
         // --- Composition ---
         vec4 base = mix(night * uNightLights, day, blend);
-        gl_FragColor = vec4(base.rgb + specColor, 1.0);
+        gl_FragColor = vec4(base.rgb, 1.0);
 
         #include <tonemapping_fragment>
         #include <encodings_fragment>
