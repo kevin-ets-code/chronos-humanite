@@ -1128,7 +1128,14 @@
 
   const dayTex    = loader.load(texPath('daymap'));
   const nightTex  = loader.load(texPath('nightmap'));
-  const normalTex   = loader.load(texPath('normal_map'));
+  const bumpTex     = loader.load(texPath('normal_map'));
+  // Wrap horizontal (méridien 180°) : la finite difference de la normale et le
+  // displacement échantillonnent les voisins en U ; sans RepeatWrapping le seam
+  // équirectangulaire produit des traits blancs nord-sud au Pacifique central.
+  // Vertical clampé : éviter de re-wrapper les pôles.
+  bumpTex.wrapS = THREE.RepeatWrapping;
+  bumpTex.wrapT = THREE.ClampToEdgeWrapping;
+  bumpTex.needsUpdate = true;
   const specularTex = loader.load(texPath('specular_map'));
 
   // ── Sun direction (world space, fixed) ────────────────────
@@ -1165,7 +1172,7 @@
       uNight:       { value: nightTex },
       uSun:         { value: SUN_DIR  },
       uNightLights: { value: 0.0 },
-      uNormalMap:   { value: normalTex },
+      uBumpMap:     { value: bumpTex },
       uSpecularMap: { value: specularTex },
       uSunColor:    { value: new THREE.Vector3(1.0, 0.95, 0.85) },
       // Ombres portées des nuages (desktop only — forcé à 0 sur mobile).
@@ -1198,9 +1205,23 @@
       // Calibrage console : window._earthMat.uniforms.uIceLift / uIceTint
       uIceLift: { value: 0.72 },
       uIceTint: { value: new THREE.Vector3(0.78, 0.85, 0.92) },
+      // Bump map grayscale (Natural Earth III, blanc=haut) — sert au
+      // displacement géométrique (vertex) ET au calcul de normale par finite
+      // difference (fragment). uDisplacementScale = amplitude du relief le long
+      // de la normale (altitude max = R + uDisplacementScale). Calibrage console :
+      // window._earthMat.uniforms.uDisplacementScale.value
+      uDisplacementScale: { value: 0.030 },
+      // Intensité du relief : 1/uNormalStrength est la composante Z de la
+      // normale tangent-space dérivée par finite difference sur la bump map.
+      // Plus uNormalStrength est grand, plus la pente est marquée (ombres
+      // rasantes renforcées) ; → 0 aplatit vers la normale géométrique.
+      // Calibrage console : window._earthMat.uniforms.uNormalStrength.value
+      uNormalStrength: { value: 2.5 },
     },
     vertexShader: /* glsl */`
       uniform vec3 uSun;
+      uniform sampler2D uBumpMap;
+      uniform float uDisplacementScale;
 
       varying vec2 vUv;
       varying vec3 vNormalW;
@@ -1212,6 +1233,11 @@
 
       void main() {
         vUv = uv;
+
+        // Displacement géométrique le long de la normale à partir de la bump
+        // map grayscale (blanc=haut). Altitude max = R + uDisplacementScale.
+        float h = texture2D(uBumpMap, uv).r;
+        vec3 displaced = position + normal * h * uDisplacementScale;
 
         mat3 mModel  = mat3(modelMatrix);
         vec3 normalW = normalize(mModel * normal);
@@ -1231,16 +1257,16 @@
         vTangentW    = tangent;
         vBitangentW  = normalize(cross(normalW, tangent));
 
-        vec4 worldPos = modelMatrix * vec4(position, 1.0);
+        vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
         vViewDir      = normalize(cameraPosition - worldPos.xyz);
 
-        gl_Position   = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        gl_Position   = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
       }
     `,
     fragmentShader: /* glsl */`
       uniform sampler2D uDay;
       uniform sampler2D uNight;
-      uniform sampler2D uNormalMap;
+      uniform sampler2D uBumpMap;
       uniform sampler2D uSpecularMap;
       uniform vec3      uSun;
       uniform vec3      uSunColor;
@@ -1256,6 +1282,7 @@
       uniform float     uOceanContrast;
       uniform float     uIceLift;
       uniform vec3      uIceTint;
+      uniform float     uNormalStrength;
 
       varying vec2 vUv;
       varying vec3 vNormalW;
@@ -1323,11 +1350,22 @@
       }
 
       void main() {
-        // --- Normal map ---
-        vec3 normalSample = texture2D(uNormalMap, vUv).rgb * 2.0 - 1.0;
-        normalSample.xy  *= 0.6; // intensité de l'effet relief (ajustable)
+        // --- Normale par finite difference sur la bump map ---
+        // La bump grayscale (blanc=haut) remplace l'ex-normal map RGB : on
+        // dérive la normale tangent-space en comparant 4 voisins (offset 1
+        // texel = 1/4096 en U et V). 1/uNormalStrength = composante Z : plus
+        // uNormalStrength est grand, plus la pente est marquée.
+        float texel = 1.0 / 4096.0;
+        // En U : fract() pour wrapper au méridien 180° (le seam équirectangulaire
+        // ferait échantillonner hors-bord → traits blancs nord-sud). En V : pas
+        // de wrap (clamp via wrapT) pour ne pas re-replier les pôles.
+        float hL = texture2D(uBumpMap, vec2(fract(vUv.x - texel), vUv.y)).r;
+        float hR = texture2D(uBumpMap, vec2(fract(vUv.x + texel), vUv.y)).r;
+        float hB = texture2D(uBumpMap, vec2(vUv.x, vUv.y - texel)).r;
+        float hT = texture2D(uBumpMap, vec2(vUv.x, vUv.y + texel)).r;
+        vec3 nTS          = normalize(vec3(-(hR - hL), -(hT - hB), 1.0 / uNormalStrength));
         mat3 TBN          = mat3(vTangentW, vBitangentW, vNormalW);
-        vec3 N            = normalize(TBN * normalSample);
+        vec3 N            = normalize(TBN * nTS);
 
         // --- Diffuse day/night ---
         float cosA  = dot(N, uSun);
@@ -1337,7 +1375,7 @@
         vec4 night = texture2D(uNight, vUv);
         // Décodage sRGB → linéaire manuel : l'auto-décodage texture.encoding
         // ne s'applique pas aux samplers de ShaderMaterial custom.
-        // uNormalMap / uSpecularMap sont des maps techniques : restent linéaires.
+        // uBumpMap / uSpecularMap sont des maps techniques : restent linéaires.
         day.rgb   = pow(day.rgb,   vec3(2.2));
         night.rgb = pow(night.rgb, vec3(2.2));
 
@@ -1434,11 +1472,16 @@
 
   window._earthMat = earthMat; // exposé pour la connexion slider → uniform
   const earth = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 64, 64),
+    // 512×256 desktop / 256×128 mobile : assez dense pour le displacement
+    // géométrique de la bump map (avant : 64×64, lisse).
+    new THREE.SphereGeometry(1, isMobile ? 256 : 512, isMobile ? 128 : 256),
     earthMat
   );
   scene.add(earth);
   window._earth = earth;
+  // Vérif densité du mesh (sommets = geometry.attributes.position.count).
+  console.log('[Terre] sommets', isMobile ? '(mobile 256×128)' : '(desktop 512×256)',
+    ': avant (64×64) =', 65 * 65, '→ après =', earth.geometry.attributes.position.count);
 
   // ── Clouds — procedural fBm shader layer, sun-reactive ────
   // (isMobile défini plus haut, avant le chargement des textures Terre)
@@ -1574,7 +1617,9 @@
     });
   }
 
-  const cloudsGeo  = new THREE.SphereGeometry(1.003, 64, 64);
+  // R=1.050 : au-dessus du relief max possible du displacement bump
+  // (R + uDisplacementScale, soit 1.040 à la valeur de calibrage max 0.040).
+  const cloudsGeo  = new THREE.SphereGeometry(1.050, 64, 64);
   const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
   earth.add(cloudsMesh); // enfant de earth → hérite de sa rotation, plus jamais décorrélé
   window._cloudsMesh = cloudsMesh;
@@ -2562,7 +2607,9 @@
     function latLngToVec3(lat, lng) {
       const phi   = (90 - lat) * Math.PI / 180;
       const theta = (lng + 180) * Math.PI / 180;
-      const R = 1.03;
+      // R=1.045 : marge de 0.005 au-dessus du relief max (1.040 à
+      // uDisplacementScale 0.040) — rapproché du globe (était 1.060).
+      const R = 1.045;
       return new THREE.Vector3(
         -R * Math.sin(phi) * Math.cos(theta),
          R * Math.cos(phi),
@@ -2724,7 +2771,9 @@
     }
 
     function applyClusterOffsets(events) {
-      const R         = 1.02;
+      // Aligné sur latLngToVec3 (1.045) : les sprites regroupés sont reprojetés
+      // sur la même sphère.
+      const R         = 1.045;
       const THRESHOLD = 0.08;
       const OFFSET_R  = 0.06;
 
@@ -3133,6 +3182,9 @@
   const terrTex = new THREE.CanvasTexture(terrCanvas);
 
   const terrSphere = new THREE.Mesh(
+    // R=1.004 : collé à la surface. À uDisplacementScale 0.030, seuls les hauts
+    // reliefs (h > 0.133 : Himalaya, Andes, Rocheuses) percent l'overlay ;
+    // plaines et collines moyennes restent recouvertes (effet naturel accepté).
     new THREE.SphereGeometry(1.004, 64, 64),
     new THREE.MeshBasicMaterial({
       map: terrTex,

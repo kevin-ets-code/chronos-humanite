@@ -90,7 +90,9 @@ Le renderer est configuré avec `toneMapping = ACESFilmicToneMapping` (`toneMapp
 
 ### Terre (`earthMat`, ~`L1155-1384`)
 
-Blends day and night textures based on `dot(N, uSun)` smoothstepped across the terminator, modulated by `uNightLights` (driven by the timeline year — city lights only show in eras where they'd exist). La normale `N` vient d'une normal map (TBN construit au vertex). Texture day = NASA Blue Marble juillet topo+bathymetry (8192×4096 desktop / 2048×1024 mobile, mêmes noms de fichiers `earth_daymap.jpg` / `2k_earth_daymap.jpg`). Blocs additionnels, dans l'ordre du fragment shader :
+Blends day and night textures based on `dot(N, uSun)` smoothstepped across the terminator, modulated by `uNightLights` (driven by the timeline year — city lights only show in eras where they'd exist). La normale `N` est dérivée par finite difference de la bump map (voir « Relief » ci-dessous), TBN construit au vertex. Texture day = NASA Blue Marble juillet topo+bathymetry (8192×4096 desktop / 2048×1024 mobile, mêmes noms de fichiers `earth_daymap.jpg` / `2k_earth_daymap.jpg`). Blocs additionnels, dans l'ordre du fragment shader :
+
+- **Relief (bump map + displacement géométrique)** — bump map Natural Earth III (domaine public, http://www.shadedrelief.com/natural3/pages/extra.html), grayscale blanc=haut, 8K desktop + 2K mobile (réutilise les noms de fichiers `earth_normal_map.jpg` / `2k_earth_normal_map.jpg` ; remplace l'ancienne normal map RGB de Solar System Scope). `uBumpMap` : sampler grayscale, `wrapS = RepeatWrapping` (corrige le seam au méridien 180° — la finite difference et le displacement échantillonnaient hors-bord en U), `wrapT = ClampToEdgeWrapping` (pas de repli des pôles). Sert à deux choses : (1) **displacement géométrique** au vertex shader — `position + normal * texture2D(uBumpMap, uv).r * uDisplacementScale` (défaut **0.030**, altitude max ≈ R + 0.030 = 1.030) ; (2) **normale par finite difference** au fragment — 4 voisins à offset 1 texel (`1/4096`), en U via `fract()` pour un wrap continu au seam, en V sans wrap ; `N = normalize(vec3(-(hR-hL), -(hT-hB), 1.0/uNormalStrength))` dans le repère tangent (défaut `uNormalStrength` **2.5** : plus grand = pente plus marquée). Sphère Terre densifiée à **512×256 segments desktop / 256×128 mobile** (au lieu de 64×64) pour porter le displacement. Calibrage console : `uDisplacementScale`, `uNormalStrength`.
 
 - **Compression océans vers teinte médiane** — `uOceanMid` (défaut `vec3(0.12, 0.12, 0.7)`, teinte cible) + `uOceanContrast` (défaut 0.85, conservation du contraste original ; 1 = pas d'effet, < 1 aplatit vers `uOceanMid`) : `mix(uOceanMid, dayColor, uOceanContrast)` appliqué aux océans uniquement (la bathymétrie Blue Marble est trop contrastée), masqué par la specular map (`specMask`, hissé là puis réutilisé par le sun glint), appliqué après le decode pow 2.2 et avant terminateur / mix jour-nuit (crépuscule et nuit restent cohérents).
 - **Atténuation glace polaire** — `uIceLift` (défaut 0.72, facteur multiplicatif) + `uIceTint` (défaut `vec3(0.78, 0.85, 0.92)`, cyan-blanc neigeux) : l'Antarctique ressort cramé en blanc pur (saturé par ACES). Masque glace = forte luminance Rec.601 (`smoothstep(0.65, 0.85, lum)`) ET latitude haute (`smoothstep(0.30, 0.42, abs(vUv.y - 0.5))`, soit > ~60° N/S) ; sur ces pixels `dayColor *= uIceLift` puis désaturation 50% vers `uIceTint`. Appliqué AVANT le mix jour/nuit.
@@ -107,6 +109,19 @@ Desktop : ShaderMaterial procédural — fBm 6 octaves avec double domain warpin
 ### Atmosphère (~`L1534-1573`)
 
 **Une seule** sphère ShaderMaterial (r=1.1, `BackSide`, additive) — glow de Fresnel piloté par `atmMultiplier` (slider ATMOSPHÈRE, clé `vs-atm`). Hors pipeline ACES (voir ci-dessus).
+
+## Couches du globe (rayons R)
+
+Empilement radial des coquilles concentriques (rayon local, sphère Terre = 1.0). Depuis l'ajout du displacement, le relief monte jusqu'à ~1.030 (à `uDisplacementScale` 0.030), ce qui contraint l'ordre des couches :
+
+| Couche | R | Note |
+|---|---|---|
+| Globe surface | 1.000 | relief jusqu'à ~1.030 à `uDisplacementScale` 0.030 |
+| Empires overlay (`terrSphere`) | 1.004 | collé à la surface ; **percé par les hauts reliefs** (Himalaya, Andes, Rocheuses : seuil `h > 0.133`), plaines et collines moyennes restent recouvertes — effet naturel accepté |
+| Sprites événements (`latLngToVec3` + `applyClusterOffsets`, **les deux** rayons à garder en phase) | 1.045 | juste sous les nuages |
+| Nuages (`cloudsGeo`) | 1.050 | au-dessus de tout |
+
+Sprites en perspective : marge confortable au-dessus du relief, mais les nuages (1.050) peuvent occasionnellement passer **devant** un sprite (1.045) — effet naturel accepté. Les hitzones HTML des sprites suivent automatiquement le rayon (projection de `sprite.getWorldPosition()` via `.project(cam)`, aucun R en dur). Le halo atmosphère (1.1) reste au-dessus de l'ensemble.
 
 ## Étoiles & Voie lactée (`skyGroup`)
 
