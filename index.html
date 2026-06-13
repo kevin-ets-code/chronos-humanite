@@ -1184,10 +1184,20 @@
       // (exposants/poids des lobes = constantes dans le shader).
       // Calibrage console : window._earthMat.uniforms.uGlintStrength.value
       uGlintStrength: { value: 1.0 },
-      // Lift gamma des océans (Blue Marble bathymetry trop sombre après le
-      // decode pow 2.2 + ACES) : < 1 éclaircit, 1 = neutre.
-      // Calibrage console : window._earthMat.uniforms.uOceanGamma.value
-      uOceanGamma: { value: 0.85 },
+      // Compression des océans vers une teinte médiane (Blue Marble
+      // bathymetry trop contrastée : eaux côtières "bleu roi" saturées, eaux
+      // profondes presque noires). uOceanMid = teinte cible, uOceanContrast =
+      // conservation du contraste original (1 = pas d'effet, < 1 aplatit vers
+      // uOceanMid). Calibrage console : window._earthMat.uniforms.uOceanMid /
+      // uOceanContrast
+      uOceanMid:      { value: new THREE.Vector3(0.12, 0.12, 0.7) },
+      uOceanContrast: { value: 0.85 },
+      // Atténuation de la glace polaire cramée (Antarctique saturé en blanc
+      // par ACES) : uIceLift = facteur multiplicatif (< 1 assombrit), uIceTint
+      // = teinte cyan-blanc neigeux vers laquelle la glace est désaturée.
+      // Calibrage console : window._earthMat.uniforms.uIceLift / uIceTint
+      uIceLift: { value: 0.72 },
+      uIceTint: { value: new THREE.Vector3(0.78, 0.85, 0.92) },
     },
     vertexShader: /* glsl */`
       uniform vec3 uSun;
@@ -1242,7 +1252,10 @@
       uniform vec3      uTwilightColor;
       uniform float     uTwilightStrength;
       uniform float     uGlintStrength;
-      uniform float     uOceanGamma;
+      uniform vec3      uOceanMid;
+      uniform float     uOceanContrast;
+      uniform float     uIceLift;
+      uniform vec3      uIceTint;
 
       varying vec2 vUv;
       varying vec3 vNormalW;
@@ -1328,15 +1341,30 @@
         day.rgb   = pow(day.rgb,   vec3(2.2));
         night.rgb = pow(night.rgb, vec3(2.2));
 
-        // --- Lift gamma des océans ---
-        // Éclaircit les océans (Blue Marble bathymetry trop sombre après le
-        // decode), masqué par la specular map. Appliqué AVANT terminateur,
+        // --- Compression des océans vers une teinte médiane ---
+        // Compresse le contraste océanique (Blue Marble bathymetry : eaux
+        // côtières "bleu roi" saturées, eaux profondes presque noires) vers
+        // uOceanMid, masqué par la specular map. Appliqué AVANT terminateur,
         // ombres et mix jour/nuit : crépuscule et nuit restent cohérents.
         // specMask est hissé ici et réutilisé par le sun glint plus bas
         // (même valeur, pas de second échantillonnage).
         float specMask  = texture2D(uSpecularMap, vUv).r;
         float oceanMask = clamp(specMask, 0.0, 1.0);
-        day.rgb = mix(day.rgb, pow(day.rgb, vec3(uOceanGamma)), oceanMask);
+        vec3 oceanRemap = mix(uOceanMid, day.rgb, uOceanContrast);
+        day.rgb = mix(day.rgb, oceanRemap, oceanMask);
+
+        // --- Atténuation de la glace polaire cramée ---
+        // L'Antarctique (et l'Arctique) ressort en blanc pur saturé par ACES.
+        // Masque = forte luminance ET latitude haute (> ~60° via |vUv.y-0.5|),
+        // pour ne toucher que la glace polaire. Appliqué AVANT mix jour/nuit.
+        // En plus du multiplicatif uIceLift, désaturation 50% vers un
+        // cyan-blanc neigeux (uIceTint) pour casser le blanc cramé.
+        float lum      = dot(day.rgb, vec3(0.299, 0.587, 0.114));
+        float polarLat = smoothstep(0.30, 0.42, abs(vUv.y - 0.5));
+        float iceMask  = smoothstep(0.65, 0.85, lum) * polarLat;
+        vec3 iceColor  = day.rgb * uIceLift;
+        iceColor = mix(iceColor, vec3(dot(iceColor, vec3(0.299, 0.587, 0.114))) * uIceTint, 0.5);
+        day.rgb = mix(day.rgb, iceColor, iceMask);
 
         // --- Terminateur crépusculaire ---
         // Teinte chaude de la lumière rasante : pleine dès cosA <= 0 (la nuit
