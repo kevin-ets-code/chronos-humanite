@@ -1135,6 +1135,14 @@
   // Vertical clampé : éviter de re-wrapper les pôles.
   bumpTex.wrapS = THREE.RepeatWrapping;
   bumpTex.wrapT = THREE.ClampToEdgeWrapping;
+  // Mipmaps désactivées : la finite difference passe des UV discontinus au seam
+  // (fract() + saut d'attribut 1→0 à la couture des sommets) → les dérivées
+  // implicites du mip-LOD spikent et le sampler lit le mip 1×1 sur la ligne du
+  // méridien 180°, d'où une normale plate / strie amplifiée par glint+bloom.
+  // Sans mips, plus aucune sélection de LOD → le seam disparaît. Le shader
+  // échantillonne des texels précis, les mips n'apportaient rien ici.
+  bumpTex.generateMipmaps = false;
+  bumpTex.minFilter = THREE.LinearFilter;
   bumpTex.needsUpdate = true;
   const specularTex = loader.load(texPath('specular_map'));
 
@@ -3181,21 +3189,61 @@
   const terrCtx = terrCanvas.getContext('2d');
   const terrTex = new THREE.CanvasTexture(terrCanvas);
 
+  // L'overlay empires suit la topographie du globe : displacement géométrique
+  // identique à celui de la Terre (même bump map, même uDisplacementScale), avec
+  // un offset radial CONSTANT de 0.004 au-dessus de la surface réelle. La sphère
+  // est unitaire ; le décalage se fait dans le vertex shader :
+  //   displaced = position * 1.004 + normal * h * uDisplacementScale
+  // Le globe place sa surface à position*(1 + h*scale) (sur sphère unité,
+  // normal == position) ; l'overlay à position*(1.004 + h*scale) → l'écart
+  // radial vaut exactement 0.004 partout, quel que soit le relief.
+  const terrMat = new THREE.MeshBasicMaterial({
+    map: terrTex,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    opacity: 1,
+  });
+  // CRITIQUE : uBumpMap et uDisplacementScale PARTAGENT la référence des objets
+  // uniform d'earthMat (pas de copie). Modifier en console
+  // _earthMat.uniforms.uDisplacementScale.value se répercute donc ici à la frame
+  // suivante, sans aucune synchronisation explicite. Fragment shader inchangé
+  // (échantillonnage de la texture canvas territoires par MeshBasicMaterial).
+  terrMat.onBeforeCompile = (shader) => {
+    shader.uniforms.uBumpMap = window._earthMat.uniforms.uBumpMap;
+    shader.uniforms.uDisplacementScale = window._earthMat.uniforms.uDisplacementScale;
+    shader.vertexShader =
+      'uniform sampler2D uBumpMap;\nuniform float uDisplacementScale;\n' +
+      shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        'float terrH = texture2D(uBumpMap, uv).r;\n' +
+        '        vec3 transformed = position * 1.004 + normal * terrH * uDisplacementScale;'
+      );
+  };
+
   const terrSphere = new THREE.Mesh(
-    // R=1.004 : collé à la surface. À uDisplacementScale 0.030, seuls les hauts
-    // reliefs (h > 0.133 : Himalaya, Andes, Rocheuses) percent l'overlay ;
-    // plaines et collines moyennes restent recouvertes (effet naturel accepté).
-    new THREE.SphereGeometry(1.004, 64, 64),
-    new THREE.MeshBasicMaterial({
-      map: terrTex,
-      transparent: true,
-      depthTest: true,
-      depthWrite: false,
-      opacity: 1,
-    })
+    // Sphère unité densifiée (512×256 desktop / 256×128 mobile, comme le globe)
+    // pour porter le displacement ; l'offset 0.004 est appliqué dans le vertex
+    // shader (voir terrMat.onBeforeCompile ci-dessus).
+    new THREE.SphereGeometry(1, isMobile ? 256 : 512, isMobile ? 128 : 256),
+    terrMat
   );
   window._earth.add(terrSphere);
   window._terrSphere = terrSphere;
+
+  // Comptage des triangles (globe + empires + nuages + skybox ; les étoiles sont
+  // des THREE.Points et ne comptent pas). Log au démarrage pour le calibrage perf.
+  (function logSceneTriangles() {
+    let total = 0;
+    window._scene.traverse(o => {
+      if (o.isMesh && o.geometry) {
+        const g = o.geometry;
+        if (g.index) total += g.index.count / 3;
+        else if (g.attributes.position) total += g.attributes.position.count / 3;
+      }
+    });
+    console.log('[CHRONOS] Triangles scène (meshes):', total.toLocaleString());
+  })();
 
   function lngLatToXY(lng, lat) {
     const x = (lng + 180) / 360 * TERR_W;
