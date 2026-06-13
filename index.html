@@ -1603,9 +1603,12 @@
 
     function render(val) {
       const pct = Math.max(0, Math.min(1, (val - min) / (max - min)));
-      const w = track.clientWidth;
-      thumb.style.left = (pct * w) + 'px';
-      fill.style.width = (pct * w) + 'px';
+      // Positionnement en % (indépendant de track.clientWidth) : au render
+      // initial le panneau mobile est display:none → clientWidth = 0, ce qui
+      // collait tous les pouces à gauche. Le drag (update) reste en px via
+      // rect.width, valide car le panneau est ouvert à ce moment.
+      thumb.style.left = (pct * 100) + '%';
+      fill.style.width = (pct * 100) + '%';
     }
 
     function update(e) {
@@ -1634,7 +1637,7 @@
   // que le DOM soit prêt avant d'aller chercher ses éléments.
   window.addEventListener('DOMContentLoaded', () => {
     makeVsSlider('vs-atm-track', 'vs-atm-thumb', 'vs-atm-fill',
-      0.0, 20.0, 9.5, 'vs-atm',
+      0.0, 20.0, atmPower, 'vs-atm',
       (v) => {
         if (window._atmosphereMat)
           window._atmosphereMat.uniforms.atmMultiplier.value = v;
